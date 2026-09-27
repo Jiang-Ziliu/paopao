@@ -1,0 +1,2693 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>泡沫选片 · 今日抽片</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --brand1:#7c3aed; --brand2:#a78bfa; --pink:#f472b6; --gold:#fbbf24;
+    --bg:#0a0a14; --card:rgba(255,255,255,0.04); --line:rgba(255,255,255,0.08);
+  }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--bg); color: #fff; line-height: 1.6;
+  }
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse at 15% 0%, rgba(120, 80, 255, 0.20) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 100%, rgba(255, 80, 160, 0.16) 0%, transparent 45%),
+      var(--bg);
+    display: flex; justify-content: center;
+  }
+
+  /* ============ App Shell（手机应用容器） ============ */
+  .app-shell {
+    position: relative; width: 100%; max-width: 480px; height: 100vh; height: 100dvh;
+    display: flex; flex-direction: column; overflow: hidden;
+    background: linear-gradient(180deg, #120d22 0%, #0a0a14 240px);
+  }
+  @media (min-width: 560px) {
+    body { padding: 22px 0; align-items: stretch; justify-content: center; }
+    .app-shell {
+      height: calc(100vh - 44px); border-radius: 34px; border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 30px 90px rgba(0,0,0,0.65), 0 0 0 8px rgba(255,255,255,0.03);
+    }
+  }
+
+  /* ============ Pages ============ */
+  .page { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; display: none; padding-bottom: 84px; }
+  .page.active { display: block; animation: pageIn 0.28s ease; }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .page::-webkit-scrollbar { width: 0; }
+
+  /* ============ Home Header ============ */
+  .home-header {
+    padding: calc(env(safe-area-inset-top) + 18px) 16px 16px;
+    background: linear-gradient(135deg, #6d28d9 0%, #9333ea 45%, #db2777 100%);
+    border-radius: 0 0 26px 26px; position: relative; overflow: hidden;
+  }
+  .home-header::after {
+    content:""; position:absolute; top:-40px; right:-30px; width:160px; height:160px;
+    background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 70%);
+    pointer-events: none;
+  }
+  .hh-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; position: relative; z-index: 1; }
+  .hh-logo { font-size: 19px; font-weight: 800; letter-spacing: 1px; }
+  .hh-greet { margin-left: auto; font-size: 11px; color: rgba(255,255,255,0.75); }
+  .hh-slogan { font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 12px; position: relative; z-index: 1; }
+  .search-bar {
+    display: flex; align-items: center; gap: 8px; position: relative; z-index: 1;
+    background: #fff; border-radius: 999px; padding: 9px 8px 9px 16px;
+  }
+  .search-bar .mag { color: #9ca3af; font-size: 15px; flex-shrink: 0; }
+  .search-bar input {
+    flex: 1; border: none; outline: none; background: transparent; font-size: 14px; color: #1f2937; min-width: 0;
+  }
+  .search-bar input::placeholder { color: #9ca3af; }
+  .search-bar button {
+    border: none; background: linear-gradient(135deg, #7c3aed, #db2777); color: #fff;
+    font-size: 13px; font-weight: 700; padding: 7px 18px; border-radius: 999px; cursor: pointer; flex-shrink: 0;
+    transition: transform .15s;
+  }
+  .search-bar button:active { transform: scale(.93); }
+
+  .section-pad { padding: 0 14px; }
+
+  /* ============ Category grid（时长分类宫格） ============ */
+  .cat-card {
+    margin: -18px 14px 0; background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line); border-radius: 20px; padding: 16px 8px 10px;
+    backdrop-filter: blur(12px); position: relative; z-index: 2;
+  }
+  .cat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px 0; }
+  .cat-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px;
+    cursor: pointer; border-radius: 14px; transition: transform .18s, background .18s; border: none; background: transparent;
+  }
+  .cat-icon {
+    width: 50px; height: 50px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 23px;
+    background: linear-gradient(145deg, rgba(124,58,237,0.22), rgba(219,39,119,0.14));
+    border: 1px solid rgba(255,255,255,0.1); transition: transform .18s, box-shadow .18s;
+  }
+  .cat-name { font-size: 11.5px; font-weight: 700; color: rgba(255,255,255,0.9); }
+  .cat-sub { font-size: 9.5px; color: rgba(255,255,255,0.45); margin-top: -3px; }
+  .cat-item.active .cat-icon {
+    background: linear-gradient(145deg, #7c3aed, #db2777);
+    box-shadow: 0 6px 18px rgba(168,85,247,0.5); transform: scale(1.06);
+  }
+  .cat-item.active .cat-name { color: #fff; }
+  @media (hover:hover) and (pointer:fine) {
+    .cat-item:hover { background: rgba(255,255,255,0.06); transform: translateY(-3px); }
+    .cat-item:hover .cat-icon { transform: scale(1.08) rotate(-4deg); box-shadow: 0 8px 20px rgba(168,85,247,0.45); }
+  }
+
+  /* ============ Banner 横滑 ============ */
+  .banner-head { display: flex; align-items: center; gap: 8px; margin: 20px 14px 10px; }
+  .banner-head .tt { font-size: 16px; font-weight: 800; }
+  .banner-head .st { font-size: 11px; color: var(--gold); }
+  .banner-head .more { margin-left: auto; font-size: 11px; color: rgba(255,255,255,0.45); cursor: pointer; }
+  .banner-scroll {
+    display: flex; gap: 10px; overflow-x: auto; padding: 2px 14px 6px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .banner-scroll::-webkit-scrollbar { display: none; }
+  .banner-card {
+    flex-shrink: 0; width: 128px; border-radius: 14px; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--line); position: relative; transition: transform .18s;
+  }
+  .banner-card .bp {
+    height: 168px; display: flex; align-items: flex-end; padding: 10px 8px;
+    font-size: 13px; font-weight: 800; color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+  }
+  .banner-card .bi {
+    position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 800;
+    background: linear-gradient(135deg,#f59e0b,#fbbf24); color: #3a2600; padding: 2px 8px; border-radius: 999px;
+  }
+  .banner-card .br {
+    position: absolute; top: 8px; right: 8px; font-size: 10px; font-weight: 800;
+    background: rgba(0,0,0,0.55); color: var(--gold); padding: 2px 7px; border-radius: 999px;
+  }
+  .banner-card .bt {
+    font-size: 10.5px; color: rgba(255,255,255,0.75); padding: 7px 8px; background: rgba(0,0,0,0.35);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  @media (hover:hover) and (pointer:fine) { .banner-card:hover { transform: translateY(-4px) scale(1.02); } }
+
+  /* ============ Mood filter chips ============ */
+  .chips-scroll {
+    display: flex; gap: 8px; overflow-x: auto; padding: 4px 14px 8px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .chips-scroll::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0; padding: 7px 14px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); font-size: 12.5px; cursor: pointer;
+    transition: all .18s; white-space: nowrap;
+  }
+  .chip.active {
+    background: linear-gradient(135deg, #7c3aed, #a78bfa); border-color: transparent;
+    color: #fff; font-weight: 700; box-shadow: 0 4px 14px rgba(124,58,237,0.4);
+  }
+  @media (hover:hover) and (pointer:fine) { .chip:hover { transform: translateY(-2px); border-color: rgba(167,139,250,0.5); } }
+
+  /* ============ Draw machine ============ */
+  .draw-card {
+    margin: 6px 14px 6px; border-radius: 22px; padding: 18px 16px 20px; text-align: center;
+    background: linear-gradient(160deg, rgba(120,80,255,0.18), rgba(255,80,160,0.09));
+    border: 1px solid rgba(255,255,255,0.12); position: relative; overflow: hidden;
+  }
+  .draw-card::before {
+    content:""; position:absolute; inset:0;
+    background: radial-gradient(circle at 50% -10%, rgba(251,191,36,0.16), transparent 60%);
+    pointer-events: none;
+  }
+  .draw-filter-info { font-size: 11.5px; color: rgba(255,255,255,0.7); margin-bottom: 12px; position: relative; z-index: 1; }
+  .draw-filter-info b { color: #fde68a; }
+  .slot-screen {
+    height: 92px; border-radius: 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+    position: relative; overflow: hidden;
+  }
+  .slot-screen .slot-txt {
+    font-size: 19px; font-weight: 800; padding: 0 12px;
+    background: linear-gradient(135deg, #fff, #c9b8ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .slot-screen .slot-hint { font-size: 13px; color: rgba(255,255,255,0.4); }
+  .slot-screen .sparkle, .sparkle { position: absolute; width: 5px; height: 5px; border-radius: 50%; opacity: 0; pointer-events: none; }
+  .draw-actions { display: flex; gap: 12px; justify-content: center; position: relative; z-index: 1; }
+  .draw-btn {
+    position: relative; overflow: hidden; border: none; cursor: pointer; color: #fff;
+    padding: 15px 0; border-radius: 16px; font-size: 16px; font-weight: 800; width: 46%;
+    transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s;
+  }
+  .draw-btn .sub { display: block; font-size: 10.5px; font-weight: 400; opacity: .85; margin-top: 2px; }
+  .draw-btn.single { background: linear-gradient(135deg,#7c3aed,#a78bfa); box-shadow: 0 6px 20px rgba(124,58,237,0.4); }
+  .draw-btn.ten { background: linear-gradient(135deg,#db2777,#f472b6); box-shadow: 0 6px 20px rgba(219,39,119,0.4); }
+  .draw-btn::after {
+    content:""; position: absolute; top: 0; left: -80%; width: 50%; height: 100%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-20deg);
+  }
+  .draw-btn:disabled { opacity: .55; cursor: not-allowed; }
+  .draw-btn:active { transform: scale(.95) !important; }
+  @media (hover:hover) and (pointer:fine) {
+    .draw-btn:hover { transform: scale(1.1) translateY(-3px); }
+    .draw-btn.single:hover { box-shadow: 0 12px 34px rgba(124,58,237,0.65); }
+    .draw-btn.ten:hover { box-shadow: 0 12px 34px rgba(219,39,119,0.65); }
+    .draw-btn:hover::after { animation: shine .8s ease; }
+    @keyframes shine { from { left: -80%; } to { left: 130%; } }
+  }
+
+  /* ============ Feed list ============ */
+  .feed-head { display: flex; align-items: center; gap: 8px; margin: 18px 14px 10px; }
+  .feed-head .line { width: 3px; height: 15px; border-radius: 2px; background: linear-gradient(180deg,#a78bfa,#f472b6); }
+  .feed-head h3 { font-size: 15px; font-weight: 800; }
+  .feed-head .cnt { margin-left: auto; font-size: 11px; color: rgba(255,255,255,0.4); }
+  .feed-list { padding: 0 14px; display: flex; flex-direction: column; gap: 10px; }
+  .feed-item {
+    display: flex; gap: 11px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; padding: 10px; cursor: pointer; transition: transform .18s, border-color .18s, background .18s;
+  }
+  .feed-poster {
+    width: 58px; height: 80px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 5px;
+    font-size: 10px; font-weight: 800; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6); line-height: 1.25;
+  }
+  .feed-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .feed-title { font-size: 14.5px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .feed-title .seen-flag { font-size: 9px; font-weight: 700; background: #16a34a; padding: 1px 6px; border-radius: 4px; flex-shrink: 0; }
+  .feed-meta { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .feed-tags { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+  .tag { font-size: 9.5px; padding: 2px 7px; border-radius: 5px; background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.65); }
+  .tag.time { background: rgba(96,165,250,0.15); color: #93c5fd; }
+  .tag.rt-ssr { background: rgba(251,191,36,0.18); color: #fde68a; }
+  .tag.rt-sr { background: rgba(192,132,252,0.18); color: #d8b4fe; }
+  .tag.rt-r { background: rgba(96,165,250,0.18); color: #93c5fd; }
+  .tag.rt-n { background: rgba(74,222,128,0.15); color: #86efac; }
+  .feed-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; flex-shrink: 0; }
+  .feed-rating { font-size: 16px; font-weight: 800; color: var(--gold); }
+  .feed-go {
+    font-size: 11px; font-weight: 700; color: #fff; padding: 6px 12px; border-radius: 999px;
+    background: linear-gradient(135deg,#fb7299,#ff9bb8); box-shadow: 0 3px 10px rgba(251,114,153,0.35);
+  }
+  .feed-empty { text-align: center; color: rgba(255,255,255,0.3); font-size: 13px; padding: 30px 0; }
+  @media (hover:hover) and (pointer:fine) {
+    .feed-item:hover { transform: translateY(-3px); border-color: rgba(167,139,250,0.4); background: rgba(255,255,255,0.07); }
+  }
+
+  /* ============ Common block title ============ */
+  .block-title { display: flex; align-items: center; gap: 8px; margin: 20px 14px 12px; }
+  .block-title .line { width: 3px; height: 15px; border-radius: 2px; background: linear-gradient(180deg,#a78bfa,#f472b6); }
+  .block-title h3 { font-size: 15px; font-weight: 800; }
+  .block-title .cnt { margin-left: auto; font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  /* ============ Records page ============ */
+  .seg { display: flex; gap: 6px; margin: 14px; background: rgba(255,255,255,0.05); border-radius: 12px; padding: 4px; }
+  .seg button {
+    flex: 1; border: none; background: transparent; color: rgba(255,255,255,0.6); font-size: 13px;
+    padding: 9px 0; border-radius: 9px; cursor: pointer; font-weight: 600; transition: all .2s;
+  }
+  .seg button.active { background: linear-gradient(135deg,#7c3aed,#a78bfa); color: #fff; }
+  .mini-stats { display: flex; gap: 8px; margin: 0 14px 4px; }
+  .mini-stat { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px; text-align: center; }
+  .mini-stat b { display: block; font-size: 18px; }
+  .mini-stat span { font-size: 10px; color: rgba(255,255,255,0.5); }
+  .mini-stat.gold b { color: var(--gold); } .mini-stat.green b { color: #4ade80; } .mini-stat.purple b { color: #c084fc; }
+
+  .h-list { padding: 0 14px; display: flex; flex-direction: column; gap: 8px; }
+  .h-item {
+    display: flex; align-items: center; gap: 11px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 13px; padding: 9px 11px; cursor: pointer;
+  }
+  .h-thumb {
+    width: 38px; height: 53px; border-radius: 7px; position: relative;
+    display: flex; align-items: center; justify-content: center; text-align: center; padding: 3px;
+    font-size: 9px; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .h-thumb .seen-mask {
+    position: absolute; inset: 0; border-radius: 7px; background: rgba(22,163,74,0.55);
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .h-info { flex: 1; min-width: 0; }
+  .h-info .n { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-info .m { font-size: 10.5px; color: rgba(255,255,255,0.5); margin-top: 1px; }
+  .h-info .m .ok { color: #4ade80; }
+  .h-rate { font-size: 15px; font-weight: 800; color: var(--gold); }
+
+  .collection-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 9px; padding: 0 14px; }
+  .c-card {
+    aspect-ratio: 2/3; border-radius: 11px; position: relative; overflow: hidden; cursor: pointer;
+    border: 1px solid var(--line);
+  }
+  .c-card .cp {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 7px; text-align: center; font-size: 12px; font-weight: 800; color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,.6);
+  }
+  .c-card.locked .cp { filter: grayscale(1) brightness(0.3); }
+  .c-card .rt { position: absolute; top: 5px; left: 5px; font-size: 8.5px; font-weight: 800; padding: 2px 5px; border-radius: 4px; }
+  .c-card .star { position: absolute; bottom: 5px; right: 5px; font-size: 9.5px; font-weight: 800; background: rgba(0,0,0,.6); color: var(--gold); padding: 1px 5px; border-radius: 4px; }
+  .c-card.locked .star { display: none; }
+  .c-card .done { position: absolute; top: 5px; right: 5px; font-size: 8.5px; font-weight: 800; background: #16a34a; padding: 2px 5px; border-radius: 4px; }
+
+  /* ============ Me page ============ */
+  .me-hero {
+    margin: 14px; border-radius: 22px; padding: 20px 18px;
+    background: linear-gradient(135deg, rgba(251,191,36,0.16), rgba(244,114,182,0.1));
+    border: 1px solid rgba(251,191,36,0.25);
+  }
+  .me-top { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+  .me-avatar {
+    width: 58px; height: 58px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 28px;
+    background: linear-gradient(135deg,#f59e0b,#fbbf24); box-shadow: 0 6px 18px rgba(251,191,36,0.4);
+  }
+  .me-name { font-size: 18px; font-weight: 800; color: #fde68a; }
+  .me-sub { font-size: 11.5px; color: rgba(255,255,255,0.55); margin-top: 2px; }
+  .pbar { height: 9px; border-radius: 999px; background: rgba(0,0,0,0.35); overflow: hidden; }
+  .pbar i {
+    display: block; height: 100%; border-radius: 999px; width: 0;
+    background: linear-gradient(90deg,#f59e0b,#fbbf24,#fde68a);
+    box-shadow: 0 0 10px rgba(251,191,36,0.5);
+    transition: width .6s cubic-bezier(.34,1.4,.64,1);
+  }
+  .pbar-meta { display: flex; justify-content: space-between; font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 6px; }
+  .me-stats { display: flex; gap: 9px; margin: 0 14px 4px; }
+  .me-stat {
+    flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 13px 6px; text-align: center;
+  }
+  .me-stat b { display: block; font-size: 19px; }
+  .me-stat span { font-size: 10px; color: rgba(255,255,255,0.5); }
+  .ach-list { padding: 0 14px; display: flex; flex-direction: column; gap: 8px; }
+  .ach-item {
+    display: flex; align-items: center; gap: 12px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 13px; padding: 11px 13px; opacity: .45;
+    cursor: pointer; transition: transform .2s cubic-bezier(.3,1.3,.5,1), box-shadow .2s, border-color .2s, opacity .2s;
+  }
+  .ach-item.got { opacity: 1; border-color: rgba(251,191,36,0.3); }
+  @media (hover:hover) and (pointer:fine) {
+    .ach-item:hover { transform: scale(1.045) translateY(-2px); box-shadow: 0 10px 26px rgba(0,0,0,0.45); z-index: 2; }
+    .ach-item.got:hover { border-color: rgba(251,191,36,0.65); }
+  }
+  .ach-item:active { transform: scale(.97); }
+  .ach-emoji { font-size: 22px; filter: grayscale(1); }
+  .ach-item.got .ach-emoji { filter: none; }
+  .ach-info { flex: 1; }
+  .ach-info .n { font-size: 13.5px; font-weight: 700; }
+  .ach-info .d { font-size: 10.5px; color: rgba(255,255,255,0.5); }
+  .ach-state { font-size: 11px; font-weight: 700; color: var(--gold); }
+  .ach-hint { font-size: 9px; color: rgba(255,255,255,0.32); }
+
+  /* ============ 成就成长路径弹窗 ============ */
+  .ach-path-overlay {
+    position: fixed; inset: 0; z-index: 640; display: flex; align-items: center; justify-content: center;
+    background: rgba(4,6,18,0.8); backdrop-filter: blur(8px); cursor: pointer; animation: fadeIn .25s;
+  }
+  .apw-card {
+    width: min(92%, 360px); border-radius: 22px; padding: 22px 18px 18px; text-align: center; cursor: default;
+    background: linear-gradient(170deg, #1d1838, #12101f); border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+    animation: apIn .45s cubic-bezier(.34,1.4,.64,1);
+  }
+  .apw-icon {
+    width: 74px; height: 74px; margin: 0 auto 10px; border-radius: 22px; font-size: 38px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.45);
+  }
+  .apw-name { font-size: 19px; font-weight: 900; }
+  .apw-desc { font-size: 11.5px; color: rgba(255,255,255,0.55); margin: 3px 0 14px; }
+  .apw-bar { height: 9px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  .apw-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg,#f59e0b,#fbbf24); transition: width .6s cubic-bezier(.3,1,.4,1); }
+  .apw-meta { font-size: 10.5px; color: rgba(255,255,255,0.5); margin: 6px 0 16px; }
+  .apw-meta b { color: #fde68a; }
+  .path-steps { display: flex; align-items: flex-start; justify-content: space-between; position: relative; padding: 4px 6px 0; }
+  .path-line { position: absolute; top: 17px; left: 14px; right: 14px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.1); }
+  .path-line i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg,#f59e0b,#fbbf24); transition: width .6s; }
+  .ps-node { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; }
+  .ps-node .dot {
+    width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; background: #241f42; border: 2px solid rgba(255,255,255,0.16); color: rgba(255,255,255,0.45);
+    transition: all .3s;
+  }
+  .ps-node.done .dot { background: linear-gradient(135deg,#f59e0b,#fbbf24); border-color: transparent; color: #1c1206; box-shadow: 0 4px 14px rgba(251,191,36,0.4); }
+  .ps-node.cur .dot { border-color: #fbbf24; color: #fde68a; animation: psGlow 1.4s ease-in-out infinite alternate; }
+  @keyframes psGlow { from { box-shadow: 0 0 0 0 rgba(251,191,36,0.35); } to { box-shadow: 0 0 0 7px rgba(251,191,36,0.08); } }
+  .ps-node .lb { font-size: 9px; color: rgba(255,255,255,0.5); white-space: nowrap; }
+  .ps-node.done .lb { color: #fde68a; font-weight: 700; }
+  .ps-node.cur .lb { color: #fff; font-weight: 700; }
+  .apw-tip { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 14px; }
+  .reset-row { text-align: center; margin: 22px 0 8px; }
+  .reset-btn {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.5); padding: 9px 22px; border-radius: 999px; font-size: 12px; cursor: pointer;
+  }
+  .footer-tip { text-align: center; font-size: 10.5px; color: rgba(255,255,255,0.25); padding: 16px 0 4px; }
+
+  /* ============ Tab bar ============ */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 50;
+    display: flex; padding: 6px 0 calc(env(safe-area-inset-bottom) + 6px);
+    background: rgba(14,12,26,0.92); backdrop-filter: blur(14px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .tab-item {
+    flex: 1; border: none; background: transparent; color: rgba(255,255,255,0.45);
+    display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer;
+    font-size: 10.5px; font-weight: 600; transition: color .2s, transform .15s;
+  }
+  .tab-item .ti { font-size: 21px; line-height: 1.2; transition: transform .2s; }
+  .tab-item.active { color: #e9d5ff; }
+  .tab-item.active .ti { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 3px 8px rgba(167,139,250,0.6)); }
+  @media (hover:hover) and (pointer:fine) {
+    .tab-item:hover { color: #e9d5ff; }
+    .tab-item:hover .ti { transform: translateY(-2px) scale(1.1); }
+  }
+
+  /* ============ Modal ============ */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+    z-index: 100; display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.show { display: flex; animation: fadeIn .3s; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal {
+    background: linear-gradient(160deg,#1a1530,#0d0d1a); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 24px; max-width: 360px; width: 100%; padding: 24px; text-align: center;
+    max-height: 90%; overflow-y: auto;
+    animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn { from { transform: scale(.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .rarity-badge { display: inline-block; padding: 4px 14px; border-radius: 999px; font-size: 12px; font-weight: 800; margin-bottom: 8px; color: #fff; }
+  .modal-mood { font-size: 11px; color: rgba(255,255,255,0.45); margin-bottom: 12px; }
+  .modal-poster {
+    width: 132px; height: 188px; margin: 0 auto 14px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center; padding: 12px;
+    font-size: 18px; font-weight: 800; color: #fff; text-align: center; line-height: 1.3;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  }
+  .modal-poster.ssr-glow { box-shadow: 0 0 30px rgba(251,191,36,0.6), 0 0 60px rgba(251,191,36,0.3); animation: glow 1.5s ease-in-out infinite alternate; }
+  @keyframes glow { from { box-shadow: 0 0 20px rgba(251,191,36,0.5);} to { box-shadow: 0 0 40px rgba(251,191,36,0.8);} }
+  .modal-title { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .modal-meta { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 12px; }
+  .modal-review {
+    background: rgba(255,255,255,0.05); border-left: 3px solid #a78bfa; border-radius: 0 10px 10px 0;
+    padding: 10px 14px; font-size: 13px; color: rgba(255,255,255,0.85); line-height: 1.7; text-align: left;
+    font-style: italic; margin-bottom: 12px;
+  }
+  .seen-banner {
+    background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.35);
+    color: #86efac; font-size: 12px; padding: 8px; border-radius: 10px; margin-bottom: 12px;
+  }
+  .modal-actions { display: flex; flex-direction: column; gap: 8px; }
+  .modal-row { display: flex; gap: 8px; }
+  .modal-btn {
+    flex: 1; padding: 12px; border: none; border-radius: 12px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: transform .15s; color: #fff; text-decoration: none; text-align: center;
+  }
+  .modal-btn:active { transform: scale(.96); }
+  .modal-btn.again { background: linear-gradient(135deg,#7c3aed,#a78bfa); }
+  .modal-btn.close { background: rgba(255,255,255,0.1); }
+  .modal-btn.bili { background: linear-gradient(135deg,#fb7299,#ff9bb8); box-shadow: 0 4px 14px rgba(251,114,153,0.35); }
+  .modal-btn.checkin { background: linear-gradient(135deg,#16a34a,#22c55e); box-shadow: 0 4px 14px rgba(34,197,94,0.3); }
+  .modal-btn.disabled { opacity: .55; cursor: default; background: rgba(255,255,255,0.08); box-shadow: none; }
+  @media (hover:hover) and (pointer:fine) {
+    .modal-btn:not(.disabled):hover { transform: translateY(-2px); filter: brightness(1.1); }
+  }
+
+  /* ============ Toast ============ */
+  .toast {
+    position: fixed; bottom: 92px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.9); color: #fff; padding: 10px 20px; border-radius: 999px;
+    font-size: 13px; z-index: 200; opacity: 0; transition: opacity .3s; pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.1); max-width: 86%; text-align: center;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ============ Level up ============ */
+  .levelup-overlay {
+    position: fixed; inset: 0; z-index: 300; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.78); backdrop-filter: blur(6px);
+  }
+  .levelup-overlay.show { display: flex; animation: fadeIn .3s; }
+  .levelup-box { text-align: center; animation: popIn .5s cubic-bezier(.34,1.56,.64,1); }
+  .levelup-box .big { font-size: 58px; animation: bounce .8s infinite alternate; }
+  @keyframes bounce { from { transform: translateY(0);} to { transform: translateY(-12px);} }
+  .levelup-box .lt { font-size: 24px; font-weight: 800; color: var(--gold); margin: 10px 0 4px; text-shadow: 0 0 20px rgba(251,191,36,0.6); }
+  .levelup-box .ln { font-size: 17px; color: #fde68a; font-weight: 700; }
+  .levelup-box .tip { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 14px; }
+
+  /* ============ Welcome ============ */
+  .welcome-overlay {
+    position: fixed; inset: 0; z-index: 400; display: none; align-items: center; justify-content: center;
+    padding: 26px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.5), rgba(10,10,20,0.96) 70%);
+  }
+  .welcome-overlay.show { display: flex; animation: fadeIn .4s; }
+  .welcome-card {
+    width: 100%; max-width: 340px; text-align: center;
+    background: linear-gradient(165deg, rgba(124,58,237,0.25), rgba(219,39,119,0.12));
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 28px; padding: 30px 24px 26px;
+    animation: popIn .55s cubic-bezier(.34,1.56,.64,1);
+    box-shadow: 0 24px 70px rgba(124,58,237,0.35);
+  }
+  .welcome-wave { font-size: 54px; display: inline-block; animation: wave 1.6s ease-in-out infinite; transform-origin: 70% 70%; }
+  @keyframes wave { 0%,60%,100%{transform:rotate(0);} 10%{transform:rotate(18deg);} 20%{transform:rotate(-10deg);} 30%{transform:rotate(18deg);} 40%{transform:rotate(-6deg);} 50%{transform:rotate(12deg);} }
+  .welcome-card h2 {
+    font-size: 25px; font-weight: 800; margin: 12px 0 6px;
+    background: linear-gradient(135deg,#fff,#e9d5ff,#f9a8d4); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .welcome-card .ws { font-size: 12.5px; color: rgba(255,255,255,0.65); margin-bottom: 20px; }
+  .w-features { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; text-align: left; }
+  .wf-item {
+    display: flex; gap: 11px; align-items: center; background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 11px 13px;
+    opacity: 0; animation: wfIn .5s ease forwards;
+  }
+  .wf-item:nth-child(1) { animation-delay: .25s; }
+  .wf-item:nth-child(2) { animation-delay: .4s; }
+  .wf-item:nth-child(3) { animation-delay: .55s; }
+  @keyframes wfIn { from { opacity: 0; transform: translateX(-14px);} to { opacity: 1; transform: translateX(0);} }
+  .wf-item .e { font-size: 22px; }
+  .wf-item .t { font-size: 13px; font-weight: 700; }
+  .wf-item .d { font-size: 10.5px; color: rgba(255,255,255,0.55); }
+  .w-start {
+    width: 100%; border: none; cursor: pointer; color: #fff; font-size: 16px; font-weight: 800;
+    padding: 15px; border-radius: 15px;
+    background: linear-gradient(135deg,#7c3aed,#db2777);
+    box-shadow: 0 8px 26px rgba(168,85,247,0.5);
+    opacity: 0; animation: wfIn .5s ease .7s forwards;
+    transition: transform .18s;
+  }
+  .w-start:active { transform: scale(.96); }
+  @media (hover:hover) and (pointer:fine) { .w-start:hover { transform: scale(1.04); filter: brightness(1.1); } }
+
+  /* ============ 心情主题换肤（CSS 变量驱动） ============ */
+  body {
+    --brand1:#7c3aed; --brand2:#db2777;
+    --glow:rgba(124,58,237,0.4); --radial1:rgba(120,80,255,0.20); --radial2:rgba(255,80,160,0.16);
+    --h1:#6d28d9; --h2:#9333ea; --h3:#db2777;
+    /* 泡泡配色（默认=随缘·冰蓝紫） */
+    --bub-l:#f0f9ff; --bub-m:#bae6fd; --bub-d:#93c5fd; --bub-edge:rgba(255,255,255,0.95);
+    --bub-sh:rgba(59,130,246,0.55); --bub-txt:#082f49; --bub-txt2:#0c4a6e; --bub-txt3:#075985;
+    --hero-tint:rgba(125,211,252,0.10);
+    transition: background .5s;
+  }
+  body.mood-random {
+    --brand1:#7c3aed; --brand2:#f472b6; --glow:rgba(124,58,237,0.4);
+    --radial1:rgba(120,80,255,0.20); --radial2:rgba(255,80,160,0.16);
+    --h1:#6d28d9; --h2:#db2777; --h3:#0ea5e9;
+    --bub-l:#f0f9ff; --bub-m:#bae6fd; --bub-d:#93c5fd; --bub-sh:rgba(59,130,246,0.55);
+    --bub-txt:#082f49; --bub-txt2:#0c4a6e; --bub-txt3:#075985; --hero-tint:rgba(125,211,252,0.10);
+  }
+  body.mood-happy {
+    --brand1:#f59e0b; --brand2:#fbbf24; --glow:rgba(251,191,36,0.45);
+    --radial1:rgba(251,191,36,0.18); --radial2:rgba(249,115,22,0.14);
+    --h1:#d97706; --h2:#f59e0b; --h3:#fb923c; --bg:#0f0d08;
+    --bub-l:#fffbeb; --bub-m:#fde68a; --bub-d:#fbbf24; --bub-sh:rgba(251,191,36,0.6);
+    --bub-txt:#78350f; --bub-txt2:#92400e; --bub-txt3:#a16207; --hero-tint:rgba(251,191,36,0.12);
+  }
+  body.mood-cry {
+    --brand1:#2563eb; --brand2:#3b82f6; --glow:rgba(59,130,246,0.45);
+    --radial1:rgba(59,130,246,0.20); --radial2:rgba(99,102,241,0.14);
+    --h1:#1e40af; --h2:#2563eb; --h3:#6366f1; --bg:#070a16;
+    --bub-l:#eff6ff; --bub-m:#bfdbfe; --bub-d:#60a5fa; --bub-sh:rgba(59,130,246,0.6);
+    --bub-txt:#1e3a8a; --bub-txt2:#1e40af; --bub-txt3:#2563eb; --hero-tint:rgba(96,165,250,0.12);
+  }
+  body.mood-heal {
+    --brand1:#10b981; --brand2:#34d399; --glow:rgba(52,211,153,0.45);
+    --radial1:rgba(52,211,153,0.18); --radial2:rgba(45,212,191,0.14);
+    --h1:#047857; --h2:#10b981; --h3:#2dd4bf; --bg:#07110d;
+    --bub-l:#ecfdf5; --bub-m:#a7f3d0; --bub-d:#34d399; --bub-sh:rgba(16,185,129,0.6);
+    --bub-txt:#064e3b; --bub-txt2:#047857; --bub-txt3:#059669; --hero-tint:rgba(52,211,153,0.12);
+  }
+  body.mood-thrill {
+    --brand1:#dc2626; --brand2:#ef4444; --glow:rgba(239,68,68,0.45);
+    --radial1:rgba(239,68,68,0.18); --radial2:rgba(190,24,93,0.14);
+    --h1:#991b1b; --h2:#dc2626; --h3:#e11d48; --bg:#140707;
+    --bub-l:#fff1f2; --bub-m:#fecdd3; --bub-d:#fb7185; --bub-sh:rgba(244,63,94,0.6);
+    --bub-txt:#881337; --bub-txt2:#9f1239; --bub-txt3:#be123c; --hero-tint:rgba(251,113,133,0.12);
+  }
+  body.mood-mind {
+    --brand1:#4f46e5; --brand2:#6366f1; --glow:rgba(99,102,241,0.45);
+    --radial1:rgba(99,102,241,0.22); --radial2:rgba(139,92,246,0.14);
+    --h1:#3730a3; --h2:#4f46e5; --h3:#7c3aed; --bg:#0a0a1a;
+    --bub-l:#eef2ff; --bub-m:#c7d2fe; --bub-d:#818cf8; --bub-sh:rgba(99,102,241,0.6);
+    --bub-txt:#312e81; --bub-txt2:#3730a3; --bub-txt3:#4338ca; --hero-tint:rgba(129,140,248,0.13);
+  }
+  body.mood-love {
+    --brand1:#db2777; --brand2:#f472b6; --glow:rgba(244,114,182,0.45);
+    --radial1:rgba(244,114,182,0.20); --radial2:rgba(251,113,133,0.14);
+    --h1:#be185d; --h2:#db2777; --h3:#fb7185; --bg:#140710;
+    --bub-l:#fdf2f8; --bub-m:#fbcfe8; --bub-d:#f472b6; --bub-sh:rgba(244,114,182,0.6);
+    --bub-txt:#831843; --bub-txt2:#9d174d; --bub-txt3:#be185d; --hero-tint:rgba(244,114,182,0.12);
+  }
+  body:not(.mood-default) {
+    background:
+      radial-gradient(ellipse at 15% 0%, var(--radial1) 0%, transparent 45%),
+      radial-gradient(ellipse at 85% 100%, var(--radial2) 0%, transparent 45%),
+      var(--bg);
+  }
+  body:not(.mood-default) .home-header {
+    background: linear-gradient(135deg, var(--h1) 0%, var(--h2) 45%, var(--h3) 100%);
+  }
+  body:not(.mood-default) .chip.active {
+    background: linear-gradient(135deg, var(--brand1), var(--brand2));
+    box-shadow: 0 4px 14px var(--glow);
+  }
+  body:not(.mood-default) .draw-btn.single { background: linear-gradient(135deg, var(--brand1), var(--brand2)); box-shadow: 0 6px 20px var(--glow); }
+  body:not(.mood-default) .cat-item.active .cat-icon { background: linear-gradient(145deg, var(--brand1), var(--brand2)); box-shadow: 0 6px 18px var(--glow); }
+  body:not(.mood-default) .seg button.active { background: linear-gradient(135deg, var(--brand1), var(--brand2)); }
+  body:not(.mood-default) .feed-filter-chip.active { background: linear-gradient(135deg, var(--brand1), var(--brand2)); box-shadow: 0 4px 12px var(--glow); }
+  body:not(.mood-default) .block-title .line,
+  body:not(.mood-default) .feed-head .line { background: linear-gradient(180deg, var(--brand2), var(--brand1)); }
+  body:not(.mood-default) .chat-send { background: linear-gradient(135deg, var(--brand1), var(--brand2)); }
+  body:not(.mood-default) .modal-btn.again { background: linear-gradient(135deg, var(--brand1), var(--brand2)); }
+
+  /* ============ 观影偏好（替代搜索栏） ============ */
+  .pref-box {
+    margin-top: 14px; padding: 11px 12px 9px; border-radius: 16px;
+    background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.14);
+    backdrop-filter: blur(6px);
+  }
+  .pref-title { font-size: 12.5px; font-weight: 800; margin-bottom: 8px; }
+  .pref-title .pref-sub { font-size: 10px; font-weight: 400; color: rgba(255,255,255,0.55); margin-left: 4px; }
+  .pref-box .chips-scroll { padding: 0; }
+
+  /* ============ 统计项点击交互 ============ */
+  .mini-stat.clickable, .me-stat.clickable { cursor: pointer; transition: transform .18s, box-shadow .18s, border-color .18s; position: relative; border-radius: 14px; }
+  .mini-stat.clickable:active, .me-stat.clickable:active { transform: scale(.92); }
+  @media (hover:hover) and (pointer:fine) {
+    .mini-stat.clickable:hover, .me-stat.clickable:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+  }
+  .mini-stat.active { border-color: rgba(167,139,250,0.65) !important; box-shadow: 0 0 0 1.5px rgba(167,139,250,0.55), 0 6px 18px rgba(124,58,237,0.35) !important; }
+  .mini-stat.active::after, .me-stat.active::after { content:"●"; position: absolute; top: 4px; right: 6px; font-size: 7px; color: #a78bfa; }
+  .me-stat.active { background: rgba(124,58,237,0.14); box-shadow: inset 0 0 0 1.5px rgba(167,139,250,0.55); }
+
+  /* ============ 片单页筛选条 ============ */
+  .feed-filter-row { display: flex; gap: 7px; overflow-x: auto; padding: 4px 14px 9px; scrollbar-width: none; }
+  .feed-filter-row::-webkit-scrollbar { display: none; }
+  .feed-filter-row .fr-label { flex-shrink: 0; font-size: 11px; color: rgba(255,255,255,0.4); align-self: center; font-weight: 700; }
+  .feed-filter-chip {
+    flex-shrink: 0; padding: 6px 12px; border-radius: 999px; font-size: 11.5px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.65);
+    transition: all .18s; white-space: nowrap;
+  }
+  .feed-filter-chip.active { background: linear-gradient(135deg, #7c3aed, #a78bfa); border-color: transparent; color: #fff; font-weight: 700; }
+  @media (hover:hover) and (pointer:fine) { .feed-filter-chip:hover { transform: translateY(-2px); border-color: rgba(167,139,250,0.5); } }
+
+  /* ============ C 位抽卡区 ============ */
+  .hero-draw {
+    margin: 12px 14px 6px; border-radius: 26px; padding: 18px 16px 14px; text-align: center;
+    background:
+      radial-gradient(circle at 50% 118%, var(--glow) 0%, transparent 62%),
+      radial-gradient(circle at 50% 42%, var(--hero-tint) 0%, transparent 70%),
+      linear-gradient(165deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    border: 1px solid rgba(255,255,255,0.16); position: relative; overflow: hidden;
+  }
+  .hero-draw::before {
+    content:""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(circle at 50% -12%, rgba(255,255,255,0.13), transparent 55%);
+  }
+  .hero-draw .hd-title {
+    font-size: 22px; font-weight: 900; letter-spacing: 1px; position: relative; z-index: 1;
+    background: linear-gradient(135deg,#fff,#e9d5ff 55%,#f9a8d4);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero-draw .hd-sub { font-size: 11px; color: rgba(255,255,255,0.55); margin-top: 2px; position: relative; z-index: 1; }
+  .draw-filter-info { font-size: 11.5px; color: rgba(255,255,255,0.7); margin: 8px 0 8px; position: relative; z-index: 1; }
+  .draw-filter-info b { color: #fde68a; }
+  .bubble-stage {
+    width: 208px; height: 208px; margin: 0 auto 10px; position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .bs-idle { font-size: 60px; animation: bob 2.6s ease-in-out infinite; filter: drop-shadow(0 6px 16px var(--bub-sh)) drop-shadow(0 0 18px var(--bub-l)); }
+  @keyframes bob { 0%,100% { transform: translateY(0);} 50% { transform: translateY(-10px);} }
+  .bs-film {
+    width: 186px; height: 186px; border-radius: 50%; position: relative;
+    background:
+      radial-gradient(circle at 30% 26%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.45) 20%, rgba(255,255,255,0.08) 34%),
+      radial-gradient(circle at 70% 78%, rgba(255,255,255,0.5) 0%, transparent 30%),
+      radial-gradient(circle at 50% 50%, var(--bub-l) 0%, var(--bub-m) 55%, var(--bub-d) 100%);
+    border: 2.5px solid var(--bub-edge);
+    box-shadow: inset 0 -16px 36px var(--bub-sh), inset 0 12px 26px rgba(255,255,255,0.55), 0 16px 48px var(--bub-sh), 0 0 30px var(--bub-l);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 26px 20px; text-align: center; cursor: pointer;
+    animation: bubbleBorn .7s cubic-bezier(.34,1.6,.64,1), bob 3.2s ease-in-out 0.7s infinite;
+  }
+  @keyframes bubbleBorn { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+  .bs-film .bs-t { font-size: 15.5px; font-weight: 900; color: var(--bub-txt); line-height: 1.3; text-shadow: 0 1px 2px rgba(255,255,255,0.6); }
+  .bs-film .bs-m { font-size: 10px; color: var(--bub-txt2); margin-top: 4px; font-weight: 700; opacity: .9; }
+  .bs-film .bs-r {
+    font-size: 9.5px; color: var(--bub-txt3); line-height: 1.5; margin-top: 6px; font-style: italic; opacity: .95;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .bs-film .bs-more { font-size: 9px; color: var(--bub-txt2); margin-top: 6px; font-weight: 700; opacity: .8; }
+  .draw-actions { position: relative; z-index: 1; }
+  .draw-actions .draw-btn { width: 46%; }
+  .draw-btn.main {
+    width: 100% !important; padding: 17px 0; font-size: 19px; border-radius: 18px; letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--brand1), var(--brand2)) !important;
+    box-shadow: 0 10px 32px var(--glow) !important;
+  }
+  @media (hover:hover) and (pointer:fine) { .draw-btn.main:hover { transform: scale(1.06) translateY(-4px); box-shadow: 0 18px 44px var(--glow) !important; } }
+  .fly-bubble {
+    position: absolute; border-radius: 50%; pointer-events: none; z-index: 5;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.15) 30%, transparent 50%),
+      radial-gradient(circle at 50% 50%, var(--bub-l) 0%, var(--bub-m) 60%, var(--bub-d) 100%);
+    border: 1px solid var(--bub-edge);
+    box-shadow: inset 0 -6px 14px var(--bub-sh), 0 4px 16px var(--bub-sh);
+    animation: bubbleUp linear forwards;
+  }
+  @keyframes bubbleUp {
+    0% { transform: translate(0,0) scale(.4); opacity: 0; }
+    12% { opacity: .95; }
+    85% { opacity: .8; }
+    100% { transform: translate(var(--dx,0px), var(--dy,-260px)) scale(1.15); opacity: 0; }
+  }
+
+  /* ============ 打卡破裂动画 ============ */
+  .burst-overlay {
+    position: fixed; inset: 0; z-index: 600; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(4,8,20,0.88); backdrop-filter: blur(8px);
+  }
+  .burst-overlay.show { display: flex; }
+  .burst-stage { position: relative; width: 250px; height: 250px; display: flex; align-items: center; justify-content: center; }
+  .burst-bubble {
+    width: 215px; height: 215px; border-radius: 50%; position: relative;
+    background:
+      radial-gradient(circle at 30% 26%, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.45) 20%, rgba(255,255,255,0.08) 34%),
+      radial-gradient(circle at 50% 50%, var(--bub-l) 0%, var(--bub-m) 55%, var(--bub-d) 100%);
+    border: 2.5px solid var(--bub-edge);
+    box-shadow: inset 0 -18px 40px var(--bub-sh), inset 0 12px 26px rgba(255,255,255,0.55), 0 16px 50px var(--bub-sh), 0 0 30px var(--bub-l);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 30px 24px; text-align: center;
+    animation: bubblePop .62s cubic-bezier(.5,0,.8,.4) forwards;
+  }
+  @keyframes bubblePop {
+    0% { transform: scale(1); opacity: 1; }
+    32% { transform: scale(1.16); opacity: 1; }
+    55% { transform: scale(1.28); opacity: .7; filter: blur(1px); }
+    100% { transform: scale(1.55); opacity: 0; filter: blur(6px); }
+  }
+  .burst-bubble .bb-t { font-size: 17px; font-weight: 900; color: var(--bub-txt); }
+  .burst-bubble .bb-r {
+    font-size: 10.5px; color: var(--bub-txt2); line-height: 1.6; margin-top: 8px; font-style: italic;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .shard {
+    position: absolute; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.9), rgba(186,230,253,0.4) 60%, rgba(224,242,254,0.5));
+    border: 1px solid rgba(255,255,255,0.55);
+    animation: shardFly .8s cubic-bezier(.2,.6,.4,1) forwards;
+  }
+  @keyframes shardFly {
+    0% { transform: translate(0,0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--sx), var(--sy)) scale(.1); opacity: 0; }
+  }
+  .burst-creature {
+    position: absolute; font-size: 74px; opacity: 0; transform: scale(.2);
+    animation: creatureIn .9s cubic-bezier(.34,1.56,.64,1) .5s forwards;
+    filter: drop-shadow(0 8px 24px rgba(56,189,248,0.5));
+  }
+  @keyframes creatureIn {
+    0% { opacity: 0; transform: scale(.2) translateY(30px); }
+    60% { opacity: 1; transform: scale(1.15) translateY(-6px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .burst-text {
+    position: absolute; bottom: -66px; left: 50%; transform: translateX(-50%);
+    width: 300px; text-align: center; font-size: 13px; color: #bae6fd; line-height: 1.7;
+    opacity: 0; animation: txtIn .6s ease .9s forwards;
+  }
+  .burst-text b { color: #fde68a; }
+  @keyframes txtIn { to { opacity: 1; } }
+
+  /* ============ 海底世界 ============ */
+  .ocean-box {
+    margin: 0 14px; border-radius: 20px; padding: 14px 12px 10px;
+    background: linear-gradient(180deg, rgba(14,116,144,0.28), rgba(30,58,138,0.30) 60%, rgba(12,20,60,0.5));
+    border: 1px solid rgba(56,189,248,0.28);
+    position: relative; overflow: hidden;
+  }
+  .ocean-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .ocean-head .t { font-size: 15px; font-weight: 800; color: #e0f2fe; }
+  .ocean-head .s { font-size: 10.5px; color: rgba(224,242,254,0.6); }
+  .ocean-head .n { margin-left: auto; font-size: 11px; color: #7dd3fc; font-weight: 700; }
+  .ocean-scene { position: relative; height: 172px; border-radius: 14px; background: linear-gradient(180deg, rgba(3,105,161,0.20), rgba(12,74,110,0.34)); overflow: hidden; }
+  .ocean-floor {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 30px;
+    background: linear-gradient(180deg, rgba(180,140,90,0.25), rgba(120,90,50,0.4));
+    border-radius: 50% 50% 0 0 / 100% 100% 0 0; transform: scaleX(1.2);
+  }
+  .ocean-weed { position: absolute; bottom: 12px; font-size: 22px; opacity: .85; animation: sway 3.4s ease-in-out infinite alternate; transform-origin: bottom center; }
+  @keyframes sway { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+  .ocean-bub {
+    position: absolute; bottom: 6px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.75), rgba(186,230,253,0.2) 60%, transparent);
+    border: 1px solid rgba(255,255,255,0.35);
+    animation: oceanUp 5s linear infinite;
+  }
+  @keyframes oceanUp {
+    0% { transform: translateY(0); opacity: 0; }
+    15% { opacity: .8; }
+    100% { transform: translateY(-150px); opacity: 0; }
+  }
+  .ocean-creature { position: absolute; font-size: 26px; cursor: pointer; transition: transform .2s; text-shadow: 0 2px 8px rgba(0,0,0,0.35); }
+  .ocean-creature:active { transform: scale(1.25); }
+  /* 点击生物：片名从身体里爆出来 */
+  .ocean-creature.bursting { animation: creatureBurst .5s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes creatureBurst { 0% { transform: scale(1); } 40% { transform: scale(1.55) rotate(-6deg); } 100% { transform: scale(1); } }
+  .sea-pop {
+    position: absolute; z-index: 8; pointer-events: none; white-space: nowrap;
+    padding: 5px 11px; border-radius: 12px; font-size: 11px; font-weight: 800; color: #082f49;
+    background: linear-gradient(180deg,#f0f9ff,#bae6fd); border: 1.5px solid rgba(255,255,255,0.9);
+    box-shadow: 0 6px 18px rgba(2,132,199,0.5), 0 0 14px rgba(224,242,254,0.6);
+    transform: translate(-50%,-100%);
+    animation: seaPop 2.1s cubic-bezier(.3,1.4,.5,1) forwards;
+  }
+  .sea-pop small { display: block; font-size: 8.5px; font-weight: 600; color: #0369a1; opacity: .8; }
+  .sea-pop::after {
+    content:""; position: absolute; left: 50%; bottom: -5px; transform: translateX(-50%);
+    width: 8px; height: 8px; background: #e0f2fe; transform: translateX(-50%) rotate(45deg);
+    border-right: 1.5px solid rgba(255,255,255,0.9); border-bottom: 1.5px solid rgba(255,255,255,0.9);
+  }
+  @keyframes seaPop {
+    0% { transform: translate(-50%,-100%) scale(0); opacity: 0; }
+    22% { transform: translate(-50%,-130%) scale(1.15); opacity: 1; }
+    30% { transform: translate(-50%,-125%) scale(1); }
+    72% { opacity: 1; transform: translate(-50%,-125%) scale(1); }
+    100% { transform: translate(-50%,-175%) scale(.85); opacity: 0; }
+  }
+  .ocean-creature .oc-lv {
+    position: absolute; top: -7px; right: -9px; font-size: 8.5px; font-weight: 800;
+    background: rgba(12,74,110,0.9); color: #7dd3fc; border: 1px solid rgba(125,211,252,0.5);
+    padding: 1px 5px; border-radius: 999px;
+  }
+  .ocean-empty { padding: 30px 0 26px; text-align: center; font-size: 12px; color: rgba(224,242,254,0.55); line-height: 1.9; }
+
+  /* ============ 成就图标徽章 ============ */
+  .ach-item .ach-icon-wrap {
+    width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 24px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    filter: grayscale(1); opacity: .8; transition: all .3s;
+  }
+  .ach-item.got .ach-icon-wrap { filter: none; opacity: 1; box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+  .ach-pop {
+    position: fixed; inset: 0; z-index: 620; display: flex; align-items: center; justify-content: center;
+    background: rgba(4,6,18,0.82); backdrop-filter: blur(7px); animation: fadeIn .3s; cursor: pointer;
+  }
+  .ap-card { text-align: center; animation: apIn .6s cubic-bezier(.34,1.56,.64,1); padding: 20px; }
+  @keyframes apIn { 0% { transform: scale(.3); opacity: 0; } 60% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+  .ap-icon {
+    width: 108px; height: 108px; margin: 0 auto 16px; border-radius: 30px;
+    display: flex; align-items: center; justify-content: center; font-size: 56px;
+    animation: apGlow 1.6s ease-in-out infinite alternate;
+  }
+  @keyframes apGlow { from { transform: scale(1); } to { transform: scale(1.06); } }
+  .ap-label { font-size: 12px; font-weight: 800; letter-spacing: 4px; color: rgba(255,255,255,0.55); }
+  .ap-name { font-size: 23px; font-weight: 900; margin: 6px 0 4px; color: #fff; text-shadow: 0 2px 18px rgba(251,191,36,0.4); }
+  .ap-desc { font-size: 12.5px; color: rgba(255,255,255,0.6); }
+  .ap-tip { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 18px; }
+
+  /* ============ 观看渠道 ============ */
+  .watch-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-bottom: 4px; }
+  .watch-ch {
+    display: flex; align-items: center; gap: 9px; padding: 11px 12px; border-radius: 13px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: #fff; text-decoration: none; font-size: 13px; font-weight: 700; transition: transform .15s, background .15s;
+  }
+  .watch-ch:active { transform: scale(.95); }
+  @media (hover:hover) and (pointer:fine) { .watch-ch:hover { background: rgba(255,255,255,0.1); transform: translateY(-2px); } }
+  .watch-ch .we { font-size: 20px; flex-shrink: 0; }
+  .watch-ch .ws { font-size: 10px; font-weight: 400; color: rgba(255,255,255,0.5); }
+
+  /* 去观看：浓缩单按钮 + 折叠渠道面板 */
+  .watch-toggle {
+    width: 100%; border: 1px solid rgba(251,114,153,0.4); border-radius: 13px; cursor: pointer;
+    padding: 12px 14px; font-size: 13.5px; font-weight: 800; color: #fff;
+    background: linear-gradient(135deg,#fb7299,#c084fc);
+    box-shadow: 0 5px 16px rgba(251,114,153,0.3); display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: transform .15s, filter .15s;
+  }
+  .watch-toggle:active { transform: scale(.97); }
+  @media (hover:hover) and (pointer:fine) { .watch-toggle:hover { filter: brightness(1.1); transform: translateY(-2px); } }
+  .watch-toggle .caret { font-size: 10px; transition: transform .25s; }
+  .watch-toggle.open .caret { transform: rotate(180deg); }
+  .watch-panel { display: none; margin-top: 9px; animation: sugIn .22s ease; }
+  .watch-panel.open { display: grid; }
+
+  /* ============ 分享模块 ============ */
+  .share-row { display: flex; gap: 9px; margin-top: 9px; }
+  .share-btn {
+    flex: 1; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; cursor: pointer;
+    padding: 10px 6px; font-size: 11.5px; font-weight: 700; color: #fff; text-align: center;
+    background: rgba(255,255,255,0.06); transition: transform .15s, background .15s;
+  }
+  .share-btn:active { transform: scale(.94); }
+  @media (hover:hover) and (pointer:fine) { .share-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-2px); } }
+  .share-btn .se { display: block; font-size: 18px; margin-bottom: 3px; }
+  .share-overlay {
+    position: fixed; inset: 0; z-index: 660; display: none; align-items: center; justify-content: center;
+    background: rgba(4,6,18,0.8); backdrop-filter: blur(8px); padding: 22px; cursor: pointer; animation: fadeIn .25s;
+  }
+  .share-overlay.show { display: flex; }
+  .share-card {
+    width: 100%; max-width: 330px; border-radius: 22px; padding: 20px 18px 16px; cursor: default;
+    background: linear-gradient(170deg,#1d1838,#12101f); border: 1px solid rgba(255,255,255,0.14);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.6); animation: apIn .4s cubic-bezier(.34,1.4,.64,1);
+  }
+  .share-card h4 { font-size: 17px; font-weight: 900; text-align: center; margin-bottom: 12px; }
+  .share-poster-preview {
+    border-radius: 14px; overflow: hidden; position: relative; margin-bottom: 12px;
+    min-height: 150px; display: flex; flex-direction: column; justify-content: flex-end; padding: 14px;
+  }
+  .share-poster-preview .sp-rt { position: absolute; top: 10px; right: 12px; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 999px; background: rgba(0,0,0,0.45); }
+  .share-poster-preview .sp-t { font-size: 21px; font-weight: 900; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+  .share-poster-preview .sp-r { font-size: 12px; margin-top: 5px; opacity: .92; text-shadow: 0 1px 5px rgba(0,0,0,0.7); }
+  .share-poster-preview .sp-b { font-size: 10px; margin-top: 8px; opacity: .8; text-align: right; }
+  .share-text {
+    width: 100%; box-sizing: border-box; resize: none; height: 78px; border-radius: 11px;
+    border: 1px solid rgba(255,255,255,0.12); background: rgba(0,0,0,0.3); color: rgba(255,255,255,0.8);
+    font-size: 11.5px; line-height: 1.6; padding: 9px 11px; outline: none; font-family: inherit;
+  }
+  .share-actions { display: flex; gap: 8px; margin-top: 11px; }
+  .share-actions button {
+    flex: 1; border: none; border-radius: 12px; padding: 11px 8px; font-size: 12.5px; font-weight: 800;
+    color: #fff; cursor: pointer; transition: transform .15s, opacity .15s;
+  }
+  .share-actions button:active { transform: scale(.95); }
+  .share-actions .sa-copy { background: linear-gradient(135deg,#7c3aed,#a78bfa); }
+  .share-actions .sa-sys { background: linear-gradient(135deg,#0ea5e9,#38bdf8); }
+  .share-actions .sa-poster { background: linear-gradient(135deg,#db2777,#f472b6); }
+  .share-tip { text-align: center; font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 10px; }
+
+  /* ============ 海底世界：放大 + 生物拖拽 ============ */
+  .ocean-head .n { cursor: pointer; }
+  .ocean-zoom-btn {
+    margin-left: auto; border: 1px solid rgba(125,211,252,0.45); background: rgba(14,116,144,0.35);
+    color: #bae6fd; font-size: 10.5px; font-weight: 800; padding: 5px 11px; border-radius: 999px; cursor: pointer;
+    transition: transform .15s, background .15s;
+  }
+  .ocean-zoom-btn:active { transform: scale(.93); }
+  .ocean-scene { touch-action: pan-y; }
+  .ocean-creature { user-select: none; -webkit-user-drag: element; touch-action: none; }
+  .ocean-creature.dragging { animation: none !important; z-index: 9; cursor: grabbing; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.5)) drop-shadow(0 0 12px rgba(125,211,252,0.7)); transform: scale(1.25); }
+  @media (hover:hover) and (pointer:fine) { .ocean-creature { cursor: grab; } }
+  /* 生物详情气泡：fixed 定位，不被海洋边框裁剪 */
+  .sea-pop { position: fixed !important; z-index: 700 !important; }
+  .sea-pop.below { animation: seaPopDown 2.1s cubic-bezier(.3,1.4,.5,1) forwards; }
+  .sea-pop.below::after { top: -5px; bottom: auto; border: none; border-left: 1.5px solid rgba(255,255,255,0.9); border-top: 1.5px solid rgba(255,255,255,0.9); }
+  @keyframes seaPopDown {
+    0% { transform: translate(-50%,0) scale(0); opacity: 0; }
+    22% { transform: translate(-50%,12%) scale(1.15); opacity: 1; }
+    30% { transform: translate(-50%,8%) scale(1); }
+    72% { opacity: 1; transform: translate(-50%,8%) scale(1); }
+    100% { transform: translate(-50%,55%) scale(.85); opacity: 0; }
+  }
+  /* 全屏放大海洋 */
+  .ocean-zoom-overlay {
+    position: fixed; inset: 0; z-index: 630; display: none; flex-direction: column;
+    background: linear-gradient(180deg, rgba(3,105,161,0.97), rgba(12,20,60,0.99));
+    animation: fadeIn .3s;
+  }
+  .ocean-zoom-overlay.show { display: flex; }
+  .oz-head { display: flex; align-items: center; gap: 10px; padding: calc(env(safe-area-inset-top) + 14px) 16px 10px; }
+  .oz-head .t { font-size: 17px; font-weight: 900; color: #e0f2fe; }
+  .oz-head .s { font-size: 10.5px; color: rgba(224,242,254,0.6); }
+  .oz-close {
+    margin-left: auto; width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.25);
+    background: rgba(255,255,255,0.1); color: #fff; font-size: 14px; cursor: pointer;
+  }
+  .oz-body { flex: 1; padding: 0 12px calc(env(safe-area-inset-bottom) + 14px); overflow: hidden; }
+  .oz-body .ocean-scene { height: 100% !important; border-radius: 20px; }
+  .oz-body .ocean-creature { font-size: 40px; }
+  .oz-hint { text-align: center; font-size: 10.5px; color: rgba(224,242,254,0.55); padding: 4px 0 8px; }
+
+  /* ============ 聊天智能体 · 泡小沫 ============ */
+  .chat-fab {
+    position: fixed; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 76px); z-index: 60;
+    width: 58px; height: 58px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.6); cursor: grab;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.18) 26%, transparent 44%),
+      radial-gradient(circle at 50% 50%, rgba(167,139,250,0.85) 0%, rgba(124,58,237,0.75) 70%, rgba(196,181,253,0.85) 100%);
+    box-shadow: inset 0 -8px 18px rgba(124,58,237,0.5), 0 8px 26px rgba(124,58,237,0.55);
+    font-size: 22px; display: flex; align-items: center; justify-content: center;
+    animation: bob 2.8s ease-in-out infinite; transition: transform .2s, box-shadow .2s;
+    user-select: none; touch-action: none;
+  }
+  .chat-fab.dragging { animation: none; cursor: grabbing; transform: scale(1.12); box-shadow: 0 14px 36px rgba(124,58,237,0.7); z-index: 510; }
+  @media (hover:hover) and (pointer:fine) { .chat-fab:hover { transform: scale(1.12); } .chat-fab.dragging:hover { transform: scale(1.12); } }
+  .chat-fab .cf-face { transform: translateY(1px); filter: drop-shadow(0 1px 2px rgba(76,29,149,0.5)); pointer-events: none; }
+  .chat-overlay {
+    position: fixed; inset: 0; z-index: 500; background: rgba(4,6,18,0.72); backdrop-filter: blur(8px);
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .chat-overlay.show { display: flex; animation: fadeIn .25s; }
+  .chat-panel {
+    width: 100%; max-width: 480px; height: 78vh; display: flex; flex-direction: column;
+    background: linear-gradient(180deg,#191531,#0d0b1a); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 26px 26px 0 0; overflow: hidden;
+    animation: chatUp .35s cubic-bezier(.3,1.2,.5,1);
+  }
+  @keyframes chatUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .chat-head {
+    display: flex; align-items: center; gap: 11px; padding: 14px 16px;
+    background: linear-gradient(135deg, var(--h1, #6d28d9), var(--h2, #9333ea));
+  }
+  .chat-avatar {
+    width: 46px; height: 46px; border-radius: 50%; flex-shrink: 0; position: relative;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.15) 30%, transparent 48%),
+      radial-gradient(circle at 50% 50%, rgba(216,180,254,0.9) 0%, rgba(168,85,247,0.8) 70%, rgba(233,213,255,0.9) 100%);
+    border: 1.5px solid rgba(255,255,255,0.6);
+    display: flex; align-items: center; justify-content: center; font-size: 19px;
+    box-shadow: inset 0 -6px 12px rgba(124,58,237,0.5), 0 4px 14px rgba(0,0,0,0.3);
+  }
+  .chat-head .ch-name { font-size: 15.5px; font-weight: 800; }
+  .chat-head .ch-status { font-size: 10.5px; color: rgba(255,255,255,0.75); display: flex; align-items: center; gap: 4px; }
+  .ch-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+  .chat-close {
+    margin-left: auto; border: none; background: rgba(255,255,255,0.15); color: #fff;
+    width: 30px; height: 30px; border-radius: 50%; font-size: 14px; cursor: pointer;
+  }
+  .chat-body { flex: 1; overflow-y: auto; padding: 16px 14px 8px; display: flex; flex-direction: column; gap: 12px; }
+  .chat-body::-webkit-scrollbar { width: 0; }
+  .cmsg { display: flex; gap: 8px; max-width: 92%; animation: cmsgIn .3s ease; }
+  @keyframes cmsgIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .cmsg.bot { align-self: flex-start; }
+  .cmsg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .cmsg .cm-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 32% 28%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.15) 30%, transparent 48%),
+      radial-gradient(circle at 50% 50%, rgba(216,180,254,0.9), rgba(168,85,247,0.8));
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+  .cmsg.user .cm-avatar { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+  .cmsg .cm-bubble {
+    padding: 10px 13px; border-radius: 4px 16px 16px 16px; font-size: 13px; line-height: 1.7;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.09);
+  }
+  .cmsg.user .cm-bubble { border-radius: 16px 4px 16px 16px; background: linear-gradient(135deg, rgba(124,58,237,0.5), rgba(168,85,247,0.35)); }
+  .cmsg.typing .cm-bubble span { display: inline-block; animation: tp 1s infinite; }
+  .cmsg.typing .cm-bubble span:nth-child(2) { animation-delay: .18s; }
+  .cmsg.typing .cm-bubble span:nth-child(3) { animation-delay: .36s; }
+  @keyframes tp { 0%,60%,100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+  .chat-rec { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 4px; scrollbar-width: none; }
+  .chat-rec::-webkit-scrollbar { display: none; }
+  .cr-card {
+    flex-shrink: 0; width: 118px; border-radius: 13px; overflow: hidden; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.14); transition: transform .18s;
+  }
+  .cr-card:active { transform: scale(.95); }
+  @media (hover:hover) and (pointer:fine) { .cr-card:hover { transform: translateY(-3px); } }
+  .cr-poster { height: 66px; display: flex; align-items: center; justify-content: center; padding: 6px; font-size: 11px; font-weight: 800; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,0.6); line-height: 1.3; }
+  .cr-info { padding: 6px 8px; background: rgba(0,0,0,0.35); }
+  .cr-info .n { font-size: 10.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cr-info .m { font-size: 9px; color: rgba(255,255,255,0.5); display: flex; justify-content: space-between; }
+  .cr-info .m b { color: var(--gold); }
+  .chat-quick { display: flex; gap: 7px; padding: 6px 14px; overflow-x: auto; scrollbar-width: none; flex-wrap: wrap; max-height: 86px; }
+  .chat-quick::-webkit-scrollbar { display: none; }
+  .chat-quick .chip { padding: 6px 12px; font-size: 11.5px; }
+  .chat-input { display: flex; gap: 8px; padding: 10px 14px calc(env(safe-area-inset-bottom) + 12px); border-top: 1px solid rgba(255,255,255,0.08); }
+  .chat-input input {
+    flex: 1; border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06);
+    border-radius: 999px; padding: 10px 16px; color: #fff; font-size: 13px; outline: none; min-width: 0;
+  }
+  .chat-input input::placeholder { color: rgba(255,255,255,0.35); }
+  .chat-send {
+    border: none; border-radius: 999px; padding: 0 18px; font-size: 13px; font-weight: 800;
+    background: linear-gradient(135deg,#7c3aed,#a78bfa); color: #fff; cursor: pointer; flex-shrink: 0;
+  }
+  .chat-send:active { transform: scale(.93); }
+
+  /* ============ 本轮迭代：心情展开 / 待机小泡泡 / 按钮配色 / 片单牌堆 / 等级路径 ============ */
+  /* 观影偏好：展开按钮 */
+  .pref-title { display: flex; align-items: center; gap: 4px; }
+  .pref-expand {
+    margin-left: auto; flex-shrink: 0; border: 1px solid rgba(233,213,255,0.35); cursor: pointer;
+    background: linear-gradient(135deg,rgba(124,58,237,.55),rgba(219,39,119,.45)); color: #fff;
+    font-size: 10.5px; font-weight: 800; padding: 4px 11px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 3px; transition: transform .15s, filter .15s;
+  }
+  .pref-expand:active { transform: scale(.94); }
+  .pref-expand .caret { display: inline-block; transition: transform .25s; font-size: 9px; }
+  .pref-box.expanded .chips-scroll { flex-wrap: wrap; overflow-x: visible; padding-bottom: 3px; }
+  /* 展开心情时放开头部裁剪，让换行后的第二行完整露出 */
+  .home-header.expanded { overflow: visible; }
+  .home-header.expanded::after { display: none; }
+  .home-header.expanded .pref-box { position: relative; z-index: 30; box-shadow: 0 14px 34px rgba(76,29,149,0.45); }
+  .pref-box.expanded .pref-expand .caret { transform: rotate(180deg); }
+
+  /* 待机态：小泡泡不断被吹出（颜色跟随心情变量） */
+  .bs-idle { position: relative; z-index: 2; }
+  .idle-bubs { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+  .idle-bubs i {
+    position: absolute; left: var(--x); bottom: 40%; width: var(--s); height: var(--s);
+    border-radius: 50%; opacity: 0;
+    background:
+      radial-gradient(circle at 32% 28%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.15) 32%, transparent 52%),
+      radial-gradient(circle at 50% 50%, var(--bub-l) 0%, var(--bub-m) 62%, var(--bub-d) 100%);
+    border: 1px solid var(--bub-edge);
+    box-shadow: inset 0 -3px 8px var(--bub-sh), 0 2px 10px var(--bub-sh);
+    animation: ibubRise var(--d) ease-in var(--dl) infinite;
+  }
+  .idle-bubs i:nth-child(1) { --x:42%; --s:11px; --d:3.6s; --dl:.1s;  --ix:-46px; }
+  .idle-bubs i:nth-child(2) { --x:56%; --s:8px;  --d:4.2s; --dl:.9s;  --ix:38px; }
+  .idle-bubs i:nth-child(3) { --x:48%; --s:14px; --d:3.2s; --dl:1.6s; --ix:-22px; }
+  .idle-bubs i:nth-child(4) { --x:60%; --s:9px;  --d:4.6s; --dl:2.3s; --ix:54px; }
+  .idle-bubs i:nth-child(5) { --x:38%; --s:7px;  --d:3.9s; --dl:1.2s; --ix:-60px; }
+  .idle-bubs i:nth-child(6) { --x:52%; --s:12px; --d:4.4s; --dl:2.9s; --ix:18px; }
+  @keyframes ibubRise {
+    0% { transform: translate(-50%, 14px) scale(.35); opacity: 0; }
+    16% { opacity: .9; }
+    78% { opacity: .7; }
+    100% { transform: translate(calc(-50% + var(--ix)), -118px) scale(1.05); opacity: 0; }
+  }
+
+  /* 按钮配色：分享 / 关闭 / 放大关闭 */
+  .share-row .share-btn {
+    color: #fff; border: 1px solid rgba(251,191,36,0.45);
+    background: linear-gradient(135deg,#f59e0b,#fb7185);
+    box-shadow: 0 5px 16px rgba(251,114,153,0.32);
+  }
+  .modal-btn.close {
+    background: linear-gradient(135deg,#475569,#64748b);
+    border: 1px solid rgba(148,163,184,0.35); box-shadow: 0 4px 12px rgba(71,85,105,0.35);
+  }
+  .oz-close { background: linear-gradient(135deg,#0891b2,#0e7490); border-color: rgba(125,211,252,0.55); color: #ecfeff; }
+  .share-card { position: relative; }
+  .share-x {
+    position: absolute; top: 11px; right: 12px; width: 30px; height: 30px; border-radius: 50%;
+    border: 1px solid rgba(244,114,182,0.5); background: linear-gradient(135deg,#db2777,#f472b6);
+    color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; line-height: 1;
+  }
+  .share-x:active { transform: scale(.92); }
+  .share-card h4 { margin-right: 38px; }
+
+  /* 片单：卡牌牌堆收纳/展开 */
+  .deck-bar { padding: 0 14px 10px; }
+  .deck-toggle {
+    width: 100%; border-radius: 13px; cursor: pointer; padding: 11px; font-size: 12.5px; font-weight: 800;
+    color: #e9d5ff; border: 1px solid rgba(167,139,250,0.45);
+    background: linear-gradient(135deg, rgba(124,58,237,0.22), rgba(219,39,119,0.16));
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: transform .15s, filter .15s;
+  }
+  .deck-toggle:active { transform: scale(.97); }
+  .deck-toggle .caret { transition: transform .25s; font-size: 10px; }
+  .deck-toggle.open .caret { transform: rotate(180deg); }
+  .h-list.deck { gap: 0; }
+  .h-list.deck .h-item {
+    position: relative; margin-top: -52px;
+    box-shadow: 0 12px 26px rgba(0,0,0,0.5); border-color: rgba(255,255,255,0.13);
+    transform: scale(.985); transform-origin: center top;
+    transition: transform .2s, box-shadow .2s;
+    animation: deckIn .45s ease both;
+    animation-delay: calc(var(--i, 0) * 38ms);
+  }
+  .h-list.deck .h-item:first-child { margin-top: 0; transform: scale(1); }
+  .h-list.deck .h-item:first-child:hover { transform: translateY(-2px); }
+  @keyframes deckIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* 我的：等级徽章可点击 */
+  .me-level-btn {
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-family: inherit;
+    border: 1px solid rgba(251,191,36,0.5); border-radius: 999px; padding: 4px 13px 4px 11px;
+    background: linear-gradient(135deg, rgba(245,158,11,0.28), rgba(251,114,153,0.22));
+    font-size: 15px; font-weight: 800; color: #fde68a;
+    box-shadow: 0 4px 14px rgba(245,158,11,0.18);
+    transition: transform .15s, box-shadow .15s, filter .15s;
+  }
+  .me-level-btn:active { transform: scale(.95); }
+  @media (hover:hover) and (pointer:fine) { .me-level-btn:hover { transform: translateY(-2px); filter: brightness(1.12); box-shadow: 0 8px 20px rgba(245,158,11,0.32); } }
+  .me-level-btn .lv-go {
+    font-size: 9px; font-weight: 700; color: #fef3c7; background: rgba(245,158,11,0.3);
+    border-radius: 999px; padding: 2px 7px; white-space: nowrap;
+  }
+  .me-path-hint { font-size: 10px; color: rgba(253,230,138,0.65); margin-top: 3px; }
+  .lv-path-names { display: flex; flex-direction: column; gap: 5px; margin-top: 16px; text-align: left; }
+  .lv-path-names span {
+    font-size: 11px; color: rgba(255,255,255,0.4); padding: 6px 10px; border-radius: 9px;
+    background: rgba(255,255,255,0.04); border: 1px solid transparent;
+  }
+  .lv-path-names span.got { color: #fde68a; }
+  .lv-path-names span.now {
+    color: #1c1206; font-weight: 800; background: linear-gradient(135deg,#f59e0b,#fbbf24);
+    border-color: rgba(251,191,36,0.7); box-shadow: 0 4px 14px rgba(251,191,36,0.35);
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ================= 首页 ================= -->
+  <section class="page active" id="page-home">
+    <header class="home-header">
+      <div class="hh-top">
+        <span class="hh-logo">🎬 泡沫选片</span>
+        <span class="hh-greet" id="hh-greet"></span>
+      </div>
+      <div class="hh-slogan">不知道看什么？选好偏好心情，抽一张就对了</div>
+      <div class="pref-box" id="pref-box">
+        <div class="pref-title"><b class="pref-label">💭 观影偏好</b><span class="pref-sub">点心情换肤</span><button class="pref-expand" id="mood-expand" onclick="toggleMoodExpand()">展开 <span class="caret">▾</span></button></div>
+        <div class="chips-scroll" id="mood-chips"></div>
+      </div>
+    </header>
+
+    <!-- C位抽卡机：吹泡泡抽片 -->
+    <div class="hero-draw">
+      <div class="hd-title">🫧 吹个泡泡抽片看</div>
+      <div class="hd-sub">选不好就交给泡沫 · 破开泡泡遇见好片</div>
+      <div class="draw-filter-info" id="draw-filter-info"></div>
+      <div class="bubble-stage" id="bubble-stage">
+        <div class="idle-bubs"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="bs-idle" id="bs-idle">🫧</div>
+      </div>
+      <div class="draw-actions" style="flex-direction:column;align-items:stretch;gap:10px;">
+        <button class="draw-btn ten main" id="btn-single" onclick="draw()">🫧 吹泡泡 · 单抽<span class="sub">随机 1 部 · 交给缘分</span></button>
+      </div>
+    </div>
+
+    <!-- 时长分类宫格（上移，露出第一排按钮） -->
+    <div class="cat-card" style="margin-top:-8px;">
+      <div class="cat-grid" id="cat-grid"></div>
+    </div>
+
+    <!-- 内容流 -->
+    <div class="feed-head"><div class="line"></div><h3 id="feed-title">为你推荐</h3><span class="cnt" id="feed-count"></span></div>
+    <!-- 筛选条件 -->
+    <div id="feed-filters"></div>
+    <div class="feed-list" id="feed-list"></div>
+  </section>
+
+  <!-- ================= 记录页 ================= -->
+  <section class="page" id="page-records">
+    <div class="block-title"><div class="line"></div><h3>我的片单</h3></div>
+    <!-- 高分横滑（从首页迁入） -->
+    <div class="banner-head">
+      <span class="tt">⭐ 高分爽片合集</span><span class="st">片荒急救</span>
+    </div>
+    <div class="banner-scroll" id="banner-scroll"></div>
+    <div style="height:12px;"></div>
+    <div class="seg" id="records-seg">
+      <button class="active" data-seg="history">抽片记录</button>
+      <button data-seg="watched">已打卡</button>
+      <button data-seg="collection">片库图鉴</button>
+      <button data-seg="ssr">SSR 神作</button>
+    </div>
+    <div class="mini-stats">
+      <div class="mini-stat clickable" data-seg="history"><b id="rs-total">0</b><span>累计抽片</span></div>
+      <div class="mini-stat green clickable" data-seg="watched"><b id="rs-watched">0</b><span>打卡看完</span></div>
+      <div class="mini-stat gold clickable" data-seg="collection"><b id="rs-unique">0</b><span>已解锁</span></div>
+      <div class="mini-stat purple clickable" data-seg="ssr"><b id="rs-ssr">0</b><span>SSR 神作</span></div>
+    </div>
+    <div id="records-body" style="margin-top:14px;"></div>
+  </section>
+
+  <!-- ================= 我的页 ================= -->
+  <section class="page" id="page-me">
+    <div class="me-hero">
+      <div class="me-top">
+        <div class="me-avatar">🎬</div>
+        <div>
+          <button class="me-level-btn" id="me-level-name" type="button" title="点击查看等级成长路径">萌新影迷 <span class="lv-go">等级路径 ›</span></button>
+          <div class="me-path-hint">点击徽章查看全部等级路径</div>
+          <div class="me-sub"><span id="me-xp">0</span> XP · 已打卡 <span id="me-watched">0</span> 部</div>
+        </div>
+      </div>
+      <div class="pbar"><i id="me-pbar"></i></div>
+      <div class="pbar-meta"><span id="me-pcur">0 XP</span><span id="me-pnext"></span></div>
+    </div>
+    <div class="me-stats">
+      <div class="me-stat clickable" data-seg="history"><b id="ms-total">0</b><span>累计抽片</span></div>
+      <div class="me-stat clickable" data-seg="watched"><b id="ms-watched">0</b><span>打卡看完</span></div>
+      <div class="me-stat clickable" data-seg="ssr"><b id="ms-ssr" style="color:var(--gold)">0</b><span>SSR 神作</span></div>
+      <div class="me-stat clickable" data-seg="collection"><b id="ms-unique" style="color:#c084fc">0</b><span>图鉴解锁</span></div>
+    </div>
+    <div style="height:18px;"></div>
+    <!-- 海底世界：打卡后影片泡沫孵化生物 -->
+    <div class="ocean-box">
+      <div class="ocean-head">
+        <span class="t">🌊 我的海底世界</span>
+        <span class="s">每打卡一部影片，泡沫破裂孵化一条生物</span>
+        <button class="ocean-zoom-btn" onclick="openOceanZoom()">🔍 放大</button>
+      </div>
+      <div id="ocean-body"></div>
+    </div>
+    <div class="block-title"><div class="line"></div><h3>🏆 影迷成就</h3></div>
+    <div class="ach-list" id="ach-list"></div>
+    <div class="reset-row"><button class="reset-btn" onclick="resetAll()">重置所有进度</button></div>
+    <div class="footer-tip">泡沫选片 FOAM PICK · 让选择变得简单</div>
+  </section>
+
+  <!-- ================= 底部 Tab ================= -->
+  <nav class="tabbar">
+    <button class="tab-item active" data-tab="home"><span class="ti">🏠</span>首页</button>
+    <button class="tab-item" data-tab="records"><span class="ti">📋</span>片单</button>
+    <button class="tab-item" data-tab="me"><span class="ti">👤</span>我的</button>
+  </nav>
+
+  <!-- 聊天智能体入口（可拖动，位置持久化） -->
+  <button class="chat-fab" id="chat-fab" title="泡小沫 · 找片助手（可拖动）">
+    <span class="cf-face">•ᴗ•</span>
+  </button>
+</div>
+
+<!-- 打卡泡沫破裂动画层 -->
+<div class="burst-overlay" id="burst-overlay"><div class="burst-stage" id="burst-stage"></div></div>
+
+<!-- 海底世界全屏放大 -->
+<div class="ocean-zoom-overlay" id="ocean-zoom-overlay">
+  <div class="oz-head">
+    <div>
+      <div class="t">🌊 我的海底世界 <span id="ocean-count" style="font-size:11px;color:#7dd3fc;font-weight:700;">0 只</span></div>
+      <div class="s">拖动生物自由摆放 · 点击生物看它来自哪部影片</div>
+    </div>
+    <button class="oz-close" onclick="closeOceanZoom()">✕</button>
+  </div>
+  <div class="oz-hint">🐟 长按拖动 · 轻触查看详情</div>
+  <div class="oz-body" id="ocean-zoom-body"></div>
+</div>
+
+<!-- 分享面板 -->
+<div class="share-overlay" id="share-overlay">
+  <div class="share-card" id="share-card"></div>
+</div>
+
+<!-- 聊天智能体面板 -->
+<div class="chat-overlay" id="chat-overlay">
+  <div class="chat-panel">
+    <div class="chat-head">
+      <div class="chat-avatar">•ᴗ•</div>
+      <div>
+        <div class="ch-name">泡小沫</div>
+        <div class="ch-status"><span class="ch-dot"></span>找片小助手 · 在线吐泡泡</div>
+      </div>
+      <button class="chat-close" onclick="closeChat()">✕</button>
+    </div>
+    <div class="chat-body" id="chat-body"></div>
+    <div class="chat-quick" id="chat-quick"></div>
+    <div class="chat-input">
+      <input type="text" id="chat-text" placeholder="告诉我想看的类型，如：想看治愈动画">
+      <button class="chat-send" onclick="sendChat()">发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- 结果弹窗 -->
+<div class="modal-overlay" id="modal"><div class="modal" id="modal-content"></div></div>
+<!-- 升级弹窗 -->
+<div class="levelup-overlay" id="levelup-overlay" onclick="closeLevelUp()">
+  <div class="levelup-box">
+    <div class="big">🎉🎬🎉</div>
+    <div class="lt">恭喜升级！</div>
+    <div class="ln" id="lu-name"></div>
+    <div class="tip">点击任意位置继续</div>
+  </div>
+</div>
+<!-- 欢迎弹窗 -->
+<div class="welcome-overlay" id="welcome-overlay">
+  <div class="welcome-card">
+    <span class="welcome-wave">👋</span>
+    <h2>欢迎使用泡沫选片</h2>
+    <div class="ws">碎片时间不知道看什么？让它帮你决定</div>
+    <div class="w-features">
+      <div class="wf-item"><span class="e">⏱️</span><div><div class="t">按时长选片</div><div class="d">10 分钟短片到 150 分钟大片，通勤、睡前、周末都合适</div></div></div>
+      <div class="wf-item"><span class="e">🎰</span><div><div class="t">抽卡式选片</div><div class="d">心情偏好 + 稀有度，吹泡泡抽片，SSR 神作等你解锁</div></div></div>
+      <div class="wf-item"><span class="e">🫧</span><div><div class="t">多渠道观看 · 打卡孵蛋</div><div class="d">看完打卡泡沫破裂，孵化海洋生物养进你的海底世界</div></div></div>
+    </div>
+    <button class="w-start" onclick="closeWelcome()">开始抽片 →</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ==================== 心情（含主题色，选中整页换肤） ==================== */
+const MOODS = [
+  { key:"random", emoji:"🎲", name:"随缘", theme:"mood-random" },
+  { key:"happy",  emoji:"😄", name:"想笑", theme:"mood-happy" },
+  { key:"cry",    emoji:"😭", name:"想哭", theme:"mood-cry" },
+  { key:"heal",   emoji:"😌", name:"治愈", theme:"mood-heal" },
+  { key:"thrill", emoji:"😱", name:"刺激", theme:"mood-thrill" },
+  { key:"mind",   emoji:"🧠", name:"烧脑", theme:"mood-mind" },
+  { key:"love",   emoji:"💕", name:"心动", theme:"mood-love" }
+];
+function applyMoodTheme(key) {
+  const mo = MOODS.find(x => x.key === key) || MOODS[0];
+  document.body.className = document.body.className.replace(/\bmood-\S+/g, "").trim();
+  document.body.classList.add(mo.theme);
+}
+// 心情 chip 各自的专属色（激活态边框提示）
+const MOOD_DOT = { random:"linear-gradient(135deg,#f59e0b,#3b82f6,#10b981,#ef4444,#8b5cf6,#ec4899)", happy:"#fbbf24", cry:"#3b82f6", heal:"#34d399", thrill:"#ef4444", mind:"#818cf8", love:"#f472b6" };
+
+/* ==================== 时长分类（宫格） ==================== */
+const CATEGORIES = [
+  { key:"t10",  icon:"💧", name:"10分钟", sub:"动画短片", min:0,  max:15 },
+  { key:"t20",  icon:"🚇", name:"20分钟", sub:"通勤速看", min:16, max:30 },
+  { key:"t45",  icon:"🛏️", name:"45分钟", sub:"睡前一集", min:31, max:55 },
+  { key:"t90",  icon:"☕", name:"90分钟", sub:"午休轻影", min:56, max:105 },
+  { key:"t120", icon:"🍿", name:"120分钟", sub:"下班观影", min:106, max:135 },
+  { key:"t150", icon:"🌙", name:"150分钟+", sub:"周末大片", min:136, max:9999 },
+  { key:"ssr",  icon:"⭐", name:"高分神作", sub:"9.4分+" },
+  { key:"hot",  icon:"🔥", name:"紧张刺激", sub:"爽片合集" },
+  { key:"old",  icon:"🎞️", name:"经典老片", sub:"2000年前" },
+  { key:"all",  icon:"🎲", name:"随缘", sub:"全部片库" }
+];
+
+/* ==================== 片库（rt=片长分钟） ==================== */
+const MOVIES = [
+  { id:1,  title:"肖申克的救赎", year:1994, genre:"剧情/犯罪", rating:9.7, rt:142, moods:["cry","mind"], review:"希望是美好的，也许是人间至善，而美好的事物永不消逝。", g1:"#1e3a5f", g2:"#4a90b8" },
+  { id:2,  title:"霸王别姬", year:1993, genre:"剧情/爱情", rating:9.6, rt:171, moods:["cry","love"], review:"说好了一辈子，少一年、一个月、一天、一个时辰，都不算一辈子。", g1:"#8b1a1a", g2:"#d4574a" },
+  { id:3,  title:"阿甘正传", year:1994, genre:"剧情", rating:9.5, rt:142, moods:["heal","happy"], review:"生活就像一盒巧克力，你永远不知道下一颗是什么味道。", g1:"#2d5016", g2:"#6b9e3f" },
+  { id:4,  title:"泰坦尼克号", year:1997, genre:"爱情/灾难", rating:9.4, rt:194, moods:["cry","love"], review:"你跳，我也跳。赢到船票，是我一生最幸运的事。", g1:"#0c2461", g2:"#1e6091" },
+  { id:5,  title:"千与千寻", year:2001, genre:"动画/奇幻", rating:9.4, rt:125, moods:["heal"], review:"曾经发生过的事情不会忘记，只是想不起来而已。", g1:"#1a472a", g2:"#52b788" },
+  { id:6,  title:"星际穿越", year:2014, genre:"科幻/冒险", rating:9.4, rt:169, moods:["mind","thrill"], review:"爱是唯一可以超越时间与空间的事物。", g1:"#1a1a2e", g2:"#4a4e69" },
+  { id:7,  title:"盗梦空间", year:2010, genre:"科幻/悬疑", rating:9.3, rt:148, moods:["mind","thrill"], review:"我们做梦的时候，梦境是真实的，只有醒来才意识到不对劲。", g1:"#2c3e50", g2:"#5d6d7e" },
+  { id:8,  title:"辛德勒的名单", year:1993, genre:"剧情/历史", rating:9.5, rt:195, moods:["cry"], review:"救一个人，就是拯救整个世界。", g1:"#2c2c2c", g2:"#8b0000" },
+  { id:9,  title:"楚门的世界", year:1998, genre:"剧情/科幻", rating:9.4, rt:103, moods:["mind"], review:"如果再也不能见到你，祝你早安、午安、晚安。", g1:"#154360", g2:"#5dade2" },
+  { id:10, title:"海上钢琴师", year:1998, genre:"剧情/音乐", rating:9.3, rt:165, moods:["heal","cry"], review:"城市那么大，看不到尽头，我停下来不是因为所见，是因为所不见。", g1:"#1b2631", g2:"#2e86c1" },
+  { id:11, title:"三傻大闹宝莱坞", year:2009, genre:"喜剧/剧情", rating:9.2, rt:171, moods:["happy","heal"], review:"All is well. 追求卓越，成功就会出其不意地找上门。", g1:"#b9770e", g2:"#f4d03f" },
+  { id:12, title:"机器人总动员", year:2008, genre:"动画/科幻", rating:9.3, rt:98, moods:["heal","love"], review:"我不要只是生存，我要活得有意义。", g1:"#784212", g2:"#d4ac0d" },
+  { id:13, title:"放牛班的春天", year:2004, genre:"剧情/音乐", rating:9.3, rt:97, moods:["heal"], review:"每一颗心都需要爱，需要温柔，需要宽容，需要理解。", g1:"#1e8449", g2:"#52be80" },
+  { id:14, title:"无间道", year:2002, genre:"剧情/犯罪", rating:9.3, rt:101, moods:["thrill","mind"], review:"我想做个好人。对不起，我是警察。", g1:"#1c2833", g2:"#566573" },
+  { id:15, title:"寻梦环游记", year:2017, genre:"动画/奇幻", rating:9.1, rt:105, moods:["cry","heal"], review:"真正的死亡是世界上再没有一个人记得你。", g1:"#922b21", g2:"#f39c12" },
+  { id:16, title:"当幸福来敲门", year:2006, genre:"剧情/传记", rating:9.2, rt:117, moods:["heal","cry"], review:"别让别人告诉你你成不了才，即使是我也不行。", g1:"#1a5276", g2:"#2980b9" },
+  { id:17, title:"让子弹飞", year:2010, genre:"剧情/喜剧", rating:9.0, rt:132, moods:["happy","thrill"], review:"站着，还把钱挣了。", g1:"#4a1c1c", g2:"#922b21" },
+  { id:18, title:"大话西游之大圣娶亲", year:1995, genre:"喜剧/爱情", rating:9.2, rt:95, moods:["love","happy","cry"], review:"曾经有一份真诚的爱情放在我面前，我没有珍惜。", g1:"#6e2c00", g2:"#ba5510" },
+  { id:19, title:"龙猫", year:1988, genre:"动画/奇幻", rating:9.2, rt:86, moods:["heal"], review:"什么时候我们开始无法像孩子一样肆意地大呼小叫了？", g1:"#117a65", g2:"#48c9b0" },
+  { id:20, title:"教父", year:1972, genre:"剧情/犯罪", rating:9.3, rt:175, moods:["mind","thrill"], review:"不要憎恨你的敌人，那会影响你的判断力。", g1:"#1c1c1c", g2:"#4a2c0a" },
+  { id:21, title:"美丽人生", year:1997, genre:"剧情/喜剧", rating:9.6, rt:116, moods:["happy","cry"], review:"为了记住你的笑容，我拼命按下心中的快门。", g1:"#6e2c00", g2:"#d4ac0d" },
+  { id:22, title:"搏击俱乐部", year:1999, genre:"剧情/悬疑", rating:9.0, rt:139, moods:["mind","thrill"], review:"你得先放弃一切，你必须毫无恐惧，才能真正自由。", g1:"#421515", g2:"#6e2c2c" },
+  { id:23, title:"黑客帝国", year:1999, genre:"科幻/动作", rating:9.1, rt:136, moods:["thrill","mind"], review:"欢迎来到真实的荒漠。", g1:"#0d2818", g2:"#1e7e34" },
+  { id:24, title:"低俗小说", year:1994, genre:"剧情/犯罪", rating:8.8, rt:154, moods:["happy","mind"], review:"自尊心只会伤感情，我建议你戒掉它。", g1:"#3d1f1f", g2:"#8b4513" },
+  { id:25, title:"哈尔的移动城堡", year:2004, genre:"动画/奇幻", rating:9.1, rt:119, moods:["love","heal"], review:"就是因为你不好，才要留在你身边，给你幸福。", g1:"#1b4f4b", g2:"#5b9bd5" },
+  /* -- 短片 / 单集 / 纪录片：覆盖短时长档位 -- */
+  { id:26, title:"鹬 Piper", year:2016, genre:"动画短片", rating:9.2, rt:6, moods:["heal","happy"], review:"勇敢迈出第一步，你会看见不一样的世界。", g1:"#1d6f8c", g2:"#7dd3fc" },
+  { id:27, title:"包宝宝 Bao", year:2018, genre:"动画短片", rating:9.0, rt:8, moods:["heal","cry"], review:"最好的爱，是看着你长大，也舍得放手。", g1:"#b45309", g2:"#fbbf24" },
+  { id:28, title:"父与女", year:2000, genre:"动画短片", rating:9.2, rt:8, moods:["cry","heal"], review:"一生的等待，都在那片湖水与风车里。", g1:"#374151", g2:"#9ca3af" },
+  { id:29, title:"昼与夜", year:2010, genre:"动画短片", rating:8.7, rt:6, moods:["happy","mind"], review:"不同的世界相遇，才发现彼此都很精彩。", g1:"#0f766e", g2:"#f59e0b" },
+  { id:30, title:"平衡 Balance", year:1989, genre:"动画短片", rating:9.0, rt:7, moods:["mind"], review:"欲望打破平衡的七分钟寓言。", g1:"#1f2937", g2:"#6b7280" },
+  { id:31, title:"猫和老鼠（单集）", year:1965, genre:"动画/喜剧", rating:9.7, rt:8, moods:["happy","heal"], review:"八分钟一场世纪大战，快乐永不过期。", g1:"#9a3412", g2:"#f97316" },
+  { id:32, title:"哆啦A梦（单集）", year:1979, genre:"动画/治愈", rating:9.5, rt:11, moods:["heal","happy"], review:"大雄，你又被胖虎欺负了吗？", g1:"#1e40af", g2:"#60a5fa" },
+  { id:33, title:"回忆积木小屋", year:2008, genre:"动画短片", rating:9.3, rt:12, moods:["cry","heal"], review:"每一层积木，都是一段舍不得丢掉的回忆。", g1:"#0c4a6e", g2:"#38bdf8" },
+  { id:34, title:"小蝌蚪找妈妈", year:1961, genre:"水墨动画", rating:8.9, rt:15, moods:["heal","happy"], review:"中国水墨动画的开山之美。", g1:"#14532d", g2:"#86efac" },
+  { id:35, title:"神奇飞书", year:2011, genre:"动画短片", rating:8.8, rt:15, moods:["heal"], review:"书籍会给灰暗的世界重新涂上颜色。", g1:"#7c2d12", g2:"#fb923c" },
+  { id:36, title:"山水情", year:1988, genre:"水墨动画", rating:9.4, rt:19, moods:["heal","cry"], review:"一曲琴缘，山水无声，是中国动画最后的文人。", g1:"#064e3b", g2:"#34d399" },
+  { id:37, title:"三个和尚", year:1981, genre:"动画短片", rating:9.2, rt:20, moods:["happy","mind"], review:"一个和尚挑水喝，三个和尚没水喝。", g1:"#a16207", g2:"#eab308" },
+  { id:38, title:"我爱我家（单集）", year:1993, genre:"情景喜剧", rating:9.4, rt:25, moods:["happy"], review:"你看这一家子，又在和平里闹腾了。", g1:"#991b1b", g2:"#f87171" },
+  { id:39, title:"人生一串（单集）", year:2018, genre:"纪录片/美食", rating:9.0, rt:40, moods:["happy","heal"], review:"没了烟火气，人生就是一段孤独的旅程。", g1:"#7c2d12", g2:"#ea580c" },
+  { id:40, title:"武林外传（单集）", year:2006, genre:"情景喜剧", rating:9.6, rt:42, moods:["happy","love"], review:"同福客栈，江湖再见。", g1:"#713f12", g2:"#facc15" },
+  { id:41, title:"甄嬛传（单集）", year:2011, genre:"古装/剧情", rating:9.3, rt:45, moods:["mind","cry"], review:"臣妾要告发——一集一个名场面。", g1:"#581c87", g2:"#a855f7" },
+  { id:42, title:"舌尖上的中国（单集）", year:2012, genre:"纪录片/美食", rating:9.4, rt:50, moods:["heal","happy"], review:"高端的食材，往往只需要最朴素的烹饪方式。", g1:"#78350f", g2:"#d97706" },
+  { id:43, title:"地球脉动（单集）", year:2006, genre:"纪录片/自然", rating:9.7, rt:50, moods:["heal","thrill"], review:"五十分钟，看完地球的壮丽与脆弱。", g1:"#064e3b", g2:"#22d3ee" }
+];
+
+/* ==================== 稀有度 & 等级 ==================== */
+function getRarity(r) {
+  if (r >= 9.4) return { key:"ssr", label:"SSR 神作", color:"#fbbf24", cls:"rarity-ssr", xp:40 };
+  if (r >= 9.0) return { key:"sr",  label:"SR 佳作",  color:"#c084fc", cls:"rarity-sr",  xp:25 };
+  if (r >= 8.5) return { key:"r",   label:"R 推荐",   color:"#60a5fa", cls:"rarity-r",   xp:15 };
+  return { key:"n", label:"N 日常", color:"#4ade80", cls:"rarity-n", xp:10 };
+}
+const LEVELS = [
+  { lv:1, name:"萌新影迷", need:0 },
+  { lv:2, name:"入门观众", need:60 },
+  { lv:3, name:"电影爱好者", need:180 },
+  { lv:4, name:"资深影迷", need:400 },
+  { lv:5, name:"影评达人", need:750 },
+  { lv:6, name:"片单大师", need:1200 },
+  { lv:7, name:"影视传说", need:2000 }
+];
+function getLevelInfo(xp) {
+  let cur = LEVELS[0], next = LEVELS[1];
+  for (let i = 0; i < LEVELS.length; i++) if (xp >= LEVELS[i].need) { cur = LEVELS[i]; next = LEVELS[i+1] || null; }
+  return { cur, next };
+}
+
+/* ==================== 状态 ==================== */
+let state = { total:0, ssrCount:0, unlocked:{}, history:[], watched:{}, xp:0, mood:"random", cat:"all", welcomed:false, sea:[], achSeen:{} };
+function loadState() {
+  try {
+    const s = localStorage.getItem("foampick_state_v3") || localStorage.getItem("foampick_state_v2");
+    if (s) state = { ...state, ...JSON.parse(s) };
+  } catch(e) {}
+}
+function saveState() { try { localStorage.setItem("foampick_state_v3", JSON.stringify(state)); } catch(e) {} }
+
+let currentMood = state.mood || "random";
+let currentCat = state.cat || "all";
+let recordsSeg = "history";
+let drawing = false;
+let feedFilter = { rarity:"all", era:"all", genre:"all", dur:"all", mood:"all" };
+
+/* ==================== 音效引擎（WebAudio 合成，无外部资源） ==================== */
+let _actx = null;
+function actx() {
+  if (!_actx) { try { _actx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+  if (_actx && _actx.state === "suspended") _actx.resume();
+  return _actx;
+}
+function tone(freq, t0, dur, type, vol, slide) {
+  const c = actx(); if (!c) return;
+  const o = c.createOscillator(), g = c.createGain();
+  o.type = type || "sine"; o.frequency.setValueAtTime(freq, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.12, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(c.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+// 冒泡泡：随机音高的小气泡连串
+function sfxBubble() {
+  const c = actx(); if (!c) return;
+  const t0 = c.currentTime;
+  for (let i = 0; i < 6; i++) {
+    const f = 320 + Math.random() * 720;
+    tone(f, t0 + i * 0.085 + Math.random() * 0.03, 0.09, "sine", 0.075, f * 1.9);
+  }
+}
+// 单个泡泡破裂：短促"啵"
+function sfxPop() {
+  const c = actx(); if (!c) return;
+  const t0 = c.currentTime;
+  tone(430, t0, 0.07, "sine", 0.16, 140);
+  tone(950, t0 + 0.012, 0.045, "triangle", 0.05, 320);
+}
+// 大泡泡破裂（打卡）
+function sfxBigPop() {
+  const c = actx(); if (!c) return;
+  const t0 = c.currentTime;
+  tone(520, t0, 0.12, "sine", 0.2, 110);
+  tone(1200, t0 + 0.02, 0.07, "triangle", 0.07, 260);
+  for (let i = 0; i < 5; i++) {
+    const f = 500 + Math.random() * 900;
+    tone(f, t0 + 0.1 + i * 0.07, 0.08, "sine", 0.06, f * 1.7);
+  }
+}
+// SSR 上升音阶
+function sfxSparkle() {
+  const c = actx(); if (!c) return;
+  const t0 = c.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => tone(f, t0 + i * 0.09, 0.22, "sine", 0.09));
+}
+// 成就解锁叮声
+function sfxAchieve() {
+  const c = actx(); if (!c) return;
+  const t0 = c.currentTime;
+  tone(880, t0, 0.14, "sine", 0.1);
+  tone(1175, t0 + 0.11, 0.2, "sine", 0.1);
+  tone(1568, t0 + 0.24, 0.3, "sine", 0.08);
+}
+
+/* ==================== 工具 ==================== */
+function $(id) { return document.getElementById(id); }
+function fmtTime(ts) {
+  const d = new Date(ts), p = n => String(n).padStart(2,"0");
+  return `${d.getMonth()+1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function rtLabel(rt) {
+  if (rt < 60) return `⏱ ${rt}分钟`;
+  return `⏱ ${Math.floor(rt/60)}小时${rt%60 ? rt%60+"分" : ""}`;
+}
+/* 观看渠道 */
+const WATCH_CHANNELS = [
+  { e:"📺", name:"哔哩哔哩", s:"弹幕版", url:t => `https://search.bilibili.com/all?keyword=${encodeURIComponent(t)}` },
+  { e:"🥝", name:"爱奇艺",   s:"正版片源", url:t => `https://so.iqiyi.com/so/q_${encodeURIComponent(t)}` },
+  { e:"🐧", name:"腾讯视频", s:"正版片源", url:t => `https://v.qq.com/x/search/?q=${encodeURIComponent(t)}` },
+  { e:"👖", name:"优酷",     s:"正版片源", url:t => `https://so.youku.com/search_video/q_${encodeURIComponent(t)}` },
+  { e:"🎭", name:"芒果TV",   s:"综艺剧集", url:t => `https://so.mgtv.com/so?k=${encodeURIComponent(t)}` },
+  { e:"🎬", name:"1905电影网", s:"电影频道", url:t => `https://www.1905.com/search/?q=${encodeURIComponent(t)}` },
+  { e:"🔎", name:"百度搜索", s:"全网资源", url:t => `https://www.baidu.com/s?wd=${encodeURIComponent(t + " 在线观看")}` },
+  { e:"🫘", name:"豆瓣",     s:"影评评分", url:t => `https://www.douban.com/search?cat=1002&q=${encodeURIComponent(t)}` }
+];
+let toastTimer;
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+/* ==================== 分类筛选 ==================== */
+function catPool(key) {
+  const c = CATEGORIES.find(x => x.key === key) || CATEGORIES[CATEGORIES.length-1];
+  if (key === "all") return MOVIES.slice();
+  if (key === "ssr") return MOVIES.filter(m => getRarity(m.rating).key === "ssr");
+  if (key === "hot") return MOVIES.filter(m => m.moods.includes("thrill"));
+  if (key === "old") return MOVIES.filter(m => m.year <= 2000);
+  return MOVIES.filter(m => m.rt >= c.min && m.rt <= c.max);
+}
+function applyMood(pool, mood, moodRate) {
+  if (!mood || mood === "random") return pool;
+  const mp = pool.filter(m => m.moods.includes(mood));
+  if (mp.length && (!moodRate || Math.random() < 0.7)) return mp;
+  return pool;
+}
+/* 片单多维筛选条件 */
+const FEED_FILTERS = [
+  { key:"rarity", label:"稀有度", opts:[["all","全部"],["ssr","⭐SSR"],["sr","SR"],["r","R"],["n","N"]] },
+  { key:"dur", label:"片长", opts:[["all","全部"],["short","≤30分"],["mid","31-90分"],["long","91-140分"],["epic","140分+"]] },
+  { key:"era", label:"年份", opts:[["all","全部"],["old","2000年前"],["y2k","2000-2009"],["new","2010后"]] },
+  { key:"genre", label:"类型", opts:[["all","全部"],["动画","动画"],["喜剧","喜剧"],["剧情","剧情"],["科幻","科幻"],["犯罪","犯罪"],["爱情","爱情"],["纪录片","纪录片"],["短片","短片"]] },
+  { key:"mood", label:"心情", opts:[["all","全部"],["happy","😄想笑"],["cry","😭想哭"],["heal","😌治愈"],["thrill","😱刺激"],["mind","🧠烧脑"],["love","💕心动"]] }
+];
+function applyFeedFilters(pool) {
+  return pool.filter(m => {
+    const f = feedFilter, rk = getRarity(m.rating).key;
+    if (f.rarity !== "all" && rk !== f.rarity) return false;
+    if (f.dur === "short" && m.rt > 30) return false;
+    if (f.dur === "mid" && (m.rt < 31 || m.rt > 90)) return false;
+    if (f.dur === "long" && (m.rt < 91 || m.rt > 140)) return false;
+    if (f.dur === "epic" && m.rt <= 140) return false;
+    if (f.era === "old" && m.year > 2000) return false;
+    if (f.era === "y2k" && (m.year < 2000 || m.year > 2009)) return false;
+    if (f.era === "new" && m.year < 2010) return false;
+    if (f.genre !== "all" && !m.genre.includes(f.genre)) return false;
+    if (f.mood !== "all" && !m.moods.includes(f.mood)) return false;
+    return true;
+  });
+}
+function renderFeedFilters() {
+  const box = $("feed-filters");
+  box.innerHTML = FEED_FILTERS.map(g => `
+    <div class="feed-filter-row">
+      <span class="fr-label">${g.label}</span>
+      ${g.opts.map(([k, n]) => `<button class="feed-filter-chip ${feedFilter[g.key]===k?"active":""}" data-fg="${g.key}" data-fv="${k}">${n}</button>`).join("")}
+    </div>`).join("");
+  box.querySelectorAll(".feed-filter-chip").forEach(b => b.onclick = () => {
+    feedFilter[b.dataset.fg] = b.dataset.fv;
+    renderFeedFilters(); renderFeed();
+  });
+}
+function searchPool(q) {
+  q = (q || "").trim();
+  if (!q) return [];
+  return MOVIES.filter(m => m.title.includes(q) || m.genre.includes(q) || m.review.includes(q) || String(m.year).includes(q));
+}
+function filteredFeed() {
+  let pool = catPool(currentCat);
+  if (currentMood !== "random") {
+    const mp = pool.filter(m => m.moods.includes(currentMood));
+    if (mp.length) pool = mp;
+  }
+  return applyFeedFilters(pool);
+}
+
+/* ==================== Tab 切换 ==================== */
+function switchTab(tab) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  $("page-" + tab).classList.add("active");
+  document.querySelectorAll(".tab-item").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  if (tab === "records") renderRecords();
+  if (tab === "me") renderMe();
+}
+document.querySelectorAll(".tab-item").forEach(btn => btn.onclick = () => switchTab(btn.dataset.tab));
+
+/* ==================== 首页渲染 ==================== */
+function greeting() {
+  const h = new Date().getHours();
+  let g;
+  if (h < 6) g = "夜深了 🌙";
+  else if (h < 11) g = "早上好 ☀️";
+  else if (h < 14) g = "中午好 🍱";
+  else if (h < 18) g = "下午好 ☕";
+  else if (h < 23) g = "晚上好 🎬";
+  else g = "夜深了 🌙";
+  $("hh-greet").textContent = g;
+}
+
+function renderCats() {
+  const grid = $("cat-grid");
+  grid.innerHTML = "";
+  CATEGORIES.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "cat-item" + (c.key === currentCat ? " active" : "");
+    b.innerHTML = `<span class="cat-icon">${c.icon}</span><span class="cat-name">${c.name}</span><span class="cat-sub">${c.sub}</span>`;
+    b.onclick = () => {
+      currentCat = c.key; state.cat = c.key; saveState();
+      renderCats(); renderFeed(); renderDrawInfo();
+      toast(c.key === "all" ? "已切换：全部片库 🎲" : `已选择：${c.icon} ${c.name} · ${c.sub}`);
+    };
+    grid.appendChild(b);
+  });
+}
+
+function renderBanner() {
+  const wrap = $("banner-scroll");
+  wrap.innerHTML = "";
+  MOVIES.filter(m => m.rating >= 9.4).slice(0, 10).forEach(m => {
+    const card = document.createElement("div");
+    card.className = "banner-card";
+    card.innerHTML = `
+      <span class="bi">必看</span><span class="br">★${m.rating}</span>
+      <div class="bp" style="background:linear-gradient(160deg,${m.g1},${m.g2})">${m.title}</div>
+      <div class="bt">${rtLabel(m.rt)} · ${m.genre}</div>`;
+    card.onclick = () => showMovieDetail(m, false);
+    wrap.appendChild(card);
+  });
+}
+
+function renderMoods() {
+  const wrap = $("mood-chips");
+  wrap.innerHTML = "";
+  MOODS.forEach(mo => {
+    const c = document.createElement("button");
+    c.className = "chip" + (mo.key === currentMood ? " active" : "");
+    c.innerHTML = `${mo.emoji} ${mo.name}`;
+    if (mo.key === currentMood) c.style.boxShadow = `0 4px 14px var(--glow), inset 0 0 0 1.5px ${mo.key==="random"?"rgba(255,255,255,0.6)":MOOD_DOT[mo.key]}`;
+    c.onclick = () => {
+      currentMood = mo.key; state.mood = mo.key; saveState();
+      applyMoodTheme(mo.key);
+      renderMoods(); renderFeed(); renderDrawInfo();
+      toast(mo.key === "random" ? "🎲 随缘偏好：各色心情混合放映" : `观影偏好已设为「${mo.emoji} ${mo.name}」· 整页换肤 + 抽卡池偏移`);
+    };
+    wrap.appendChild(c);
+  });
+}
+
+function renderDrawInfo() {
+  const c = CATEGORIES.find(x => x.key === currentCat);
+  const mo = MOODS.find(x => x.key === currentMood);
+  $("draw-filter-info").innerHTML = `当前池：<b>${c.icon} ${c.name}</b> · 心情：<b>${mo.emoji} ${mo.name}</b>`;
+}
+
+function renderFeed() {
+  const list = $("feed-list");
+  const pool = filteredFeed();
+  const c = CATEGORIES.find(x => x.key === currentCat);
+  $("feed-title").textContent = `${c.icon} ${c.sub}`;
+  $("feed-count").textContent = `${pool.length} 部可选`;
+  if (!pool.length) {
+    list.innerHTML = `<div class="feed-empty">这个组合暂时没有匹配影片，换个筛选条件试试～</div>`;
+    return;
+  }
+  list.innerHTML = "";
+  pool.slice(0, 30).forEach(m => {
+    const r = getRarity(m.rating), seen = state.watched[m.id];
+    const moods = m.moods.map(k => MOODS.find(x => x.key === k)?.emoji).filter(Boolean).join("");
+    const item = document.createElement("div");
+    item.className = "feed-item";
+    item.innerHTML = `
+      <div class="feed-poster" style="background:linear-gradient(160deg,${m.g1},${m.g2})">${m.title}</div>
+      <div class="feed-info">
+        <div class="feed-title">${m.title}${seen ? `<span class="seen-flag">✓已看</span>` : ""}</div>
+        <div class="feed-meta">${m.year} · ${m.genre} · ${moods}</div>
+        <div class="feed-tags">
+          <span class="tag time">${rtLabel(m.rt)}</span>
+          <span class="tag rt-${r.key}">${r.label}</span>
+        </div>
+      </div>
+      <div class="feed-right">
+        <span class="feed-rating">★${m.rating}</span>
+        <span class="feed-go">📺 去看</span>
+      </div>`;
+    item.onclick = () => showMovieDetail(m, false);
+    list.appendChild(item);
+  });
+}
+
+/* ==================== 抽卡 ==================== */
+function drawOne() {
+  const base = catPool(currentCat);
+  if (!base.length) return MOVIES[Math.floor(Math.random() * MOVIES.length)];
+  const weights = [["ssr",8],["sr",30],["r",45],["n",17]]
+    .filter(([k]) => base.some(m => getRarity(m.rating).key === k));
+  const totalW = weights.reduce((s,[,w]) => s+w, 0);
+  let roll = Math.random() * totalW, rarityKey = weights[weights.length-1][0];
+  for (const [k,w] of weights) { if ((roll -= w) < 0) { rarityKey = k; break; } }
+  let pool = applyMood(base.filter(m => getRarity(m.rating).key === rarityKey), currentMood, true);
+  if (!pool.length) pool = base;
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+/* 制造泡沫：从抽卡区升起的小泡泡 */
+function spawnBubbles(n) {
+  const stage = document.querySelector(".hero-draw");
+  if (!stage) return;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  for (let i = 0; i < n; i++) {
+    const b = document.createElement("div");
+    b.className = "fly-bubble";
+    const size = 8 + Math.random() * 26;
+    b.style.width = b.style.height = size + "px";
+    b.style.left = (W * 0.2 + Math.random() * W * 0.6) + "px";
+    b.style.bottom = (20 + Math.random() * 40) + "px";
+    b.style.setProperty("--dx", (Math.random() * 120 - 60) + "px");
+    b.style.setProperty("--dy", -(H * 0.55 + Math.random() * 180) + "px");
+    b.style.animationDuration = (1 + Math.random() * 1.1) + "s";
+    b.style.animationDelay = (Math.random() * 0.35) + "s";
+    stage.appendChild(b);
+    setTimeout(() => b.remove(), 2600);
+  }
+}
+/* 舞台上展示抽中的影片泡泡（含介绍） */
+function showStageBubble(m) {
+  const stage = $("bubble-stage");
+  const r = getRarity(m.rating);
+  stage.innerHTML = `
+    <div class="bs-film" id="bs-film">
+      <div class="bs-t">${m.title}</div>
+      <div class="bs-m">${r.label} · ★${m.rating} · ${rtLabel(m.rt)}</div>
+      <div class="bs-r">“${m.review}”</div>
+      <div class="bs-more">点泡泡看详情 ›</div>
+    </div>`;
+  $("bs-film").onclick = () => showMovieDetail(m, false);
+}
+function resetStage() {
+  const stage = $("bubble-stage");
+  stage.innerHTML = `<div class="idle-bubs"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="bs-idle">🫧</div>`;
+}
+/* 观影偏好心情：展开/收起（收起时单行横滑） */
+function toggleMoodExpand() {
+  const box = $("pref-box"), btn = $("mood-expand"), header = document.querySelector(".home-header");
+  const open = box.classList.toggle("expanded");
+  if (header) header.classList.toggle("expanded", open);
+  btn.childNodes[0].nodeValue = open ? "收起 " : "展开 ";
+  sfxBubble();
+}
+
+async function draw() {
+  if (drawing) return;
+  drawing = true;
+  $("btn-single").disabled = true;
+  sfxBubble();
+  spawnBubbles(12);
+  resetStage();
+  const stage = $("bubble-stage");
+  // 制造泡沫阶段：泡泡内滚动片名
+  stage.innerHTML = `<div class="bs-film" style="animation:bubbleBorn .4s ease"><div class="bs-t" id="bs-roll" style="font-size:13px">🫧</div><div class="bs-m">吹泡泡中…</div></div>`;
+  const roll = $("bs-roll");
+  const titles = MOVIES.map(m => m.title);
+  const rollTimer = setInterval(() => {
+    roll.textContent = titles[Math.floor(Math.random() * titles.length)];
+    if (Math.random() < 0.4) spawnBubbles(2);
+  }, 80);
+  await new Promise(r => setTimeout(r, 1300));
+  clearInterval(rollTimer);
+
+  const m = drawOne();
+  state.total++;
+  if (getRarity(m.rating).key === "ssr") state.ssrCount++;
+  state.unlocked[m.id] = (state.unlocked[m.id] || 0) + 1;
+  state.history.push({ movie:m, time:Date.now() });
+  saveState();
+  renderFeed();
+  sfxPop();
+  showStageBubble(m);
+  setTimeout(() => showMovieDetail(m, true), 650);
+  checkAchievements();
+  drawing = false;
+  $("btn-single").disabled = false;
+}
+
+/* ==================== 海底生物（与影片类型/心情映射） ==================== */
+const SEA_CREATURES = {
+  anim:    { emoji:"🐠", name:"梦幻动画鱼" },
+  comedy:  { emoji:"🤡", name:"快乐小丑鱼" },
+  drama:   { emoji:"🐬", name:"深情海豚" },
+  crime:   { emoji:"🦈", name:"冷面鲨" },
+  scifi:   { emoji:"🛸", name:"星际乌贼" },
+  love:    { emoji:"💗", name:"心动水母" },
+  docu:    { emoji:"🐳", name:"纪实蓝鲸" },
+  short:   { emoji:"🦐", name:"短片小虾" },
+  suspense:{ emoji:"🐙", name:"烧脑章鱼" },
+  food:    { emoji:"🦀", name:"烟火螃蟹" },
+  music:   { emoji:"🐚", name:"留声海螺" },
+  default: { emoji:"🐡", name:"泡泡河豚" }
+};
+const SEA_MOOD = { happy:"🐟", cry:"💧", heal:"🐢", thrill:"🦈", mind:"🐙", love:"💗" };
+function seaCreatureFor(m) {
+  const g = m.genre || "";
+  let base;
+  if (g.includes("动画") || g.includes("水墨")) base = SEA_CREATURES.anim;
+  else if (g.includes("喜剧") || g.includes("情景")) base = SEA_CREATURES.comedy;
+  else if (g.includes("科幻")) base = SEA_CREATURES.scifi;
+  else if (g.includes("犯罪") || g.includes("悬疑")) base = SEA_CREATURES.crime;
+  else if (g.includes("爱情")) base = SEA_CREATURES.love;
+  else if (g.includes("纪录")) base = SEA_CREATURES.docu;
+  else if (g.includes("美食")) base = SEA_CREATURES.food;
+  else if (g.includes("音乐")) base = SEA_CREATURES.music;
+  else if (m.rt <= 25) base = SEA_CREATURES.short;
+  else base = SEA_CREATURES.drama;
+  const moodEmoji = SEA_MOOD[(m.moods || [])[0]];
+  return { emoji: moodEmoji || base.emoji, name: base.name };
+}
+
+/* ==================== 打卡（泡沫破裂 → 孵化海洋生物） ==================== */
+function checkIn(id) {
+  if (state.watched[id]) return;
+  const m = MOVIES.find(x => x.id === id), r = getRarity(m.rating);
+  const before = getLevelInfo(state.xp).cur.lv;
+  state.watched[id] = Date.now(); state.xp += r.xp;
+  const sea = seaCreatureFor(m);
+  state.sea.push({ mid:m.id, emoji:sea.emoji, name:sea.name, time:Date.now() });
+  saveState();
+  closeModal();
+  playCheckinBurst(m, sea, r.xp, () => {
+    const after = getLevelInfo(state.xp);
+    if (after.cur.lv > before) showLevelUp(after.cur.name);
+    checkAchievements();
+  });
+}
+function playCheckinBurst(m, sea, xp, after) {
+  const ov = $("burst-overlay"), stage = $("burst-stage");
+  stage.innerHTML = `
+    <div class="burst-bubble">
+      <div class="bb-t">${m.title}</div>
+      <div class="bb-r">“${m.review}”</div>
+    </div>`;
+  ov.classList.add("show");
+  sfxBigPop();
+  // 碎片飞散
+  setTimeout(() => {
+    for (let i = 0; i < 14; i++) {
+      const s = document.createElement("div");
+      s.className = "shard";
+      const size = 5 + Math.random() * 12;
+      s.style.width = s.style.height = size + "px";
+      const ang = Math.random() * Math.PI * 2, dist = 90 + Math.random() * 110;
+      s.style.setProperty("--sx", Math.cos(ang) * dist + "px");
+      s.style.setProperty("--sy", Math.sin(ang) * dist + "px");
+      stage.appendChild(s);
+    }
+    const cr = document.createElement("div");
+    cr.className = "burst-creature";
+    cr.textContent = sea.emoji;
+    stage.appendChild(cr);
+    const tx = document.createElement("div");
+    tx.className = "burst-text";
+    tx.innerHTML = `泡沫破裂，孵化出 <b>${sea.emoji} ${sea.name}</b><br>已收入「我的 · 海底世界」 · +${xp} XP`;
+    stage.appendChild(tx);
+  }, 300);
+  setTimeout(() => {
+    ov.classList.remove("show");
+    stage.innerHTML = "";
+    if (after) after();
+  }, 2600);
+}
+function showLevelUp(name) {
+  $("lu-name").textContent = `Lv.${getLevelInfo(state.xp).cur.lv} ${name}`;
+  $("levelup-overlay").classList.add("show");
+}
+function closeLevelUp() { $("levelup-overlay").classList.remove("show"); }
+
+/* ==================== 弹窗 ==================== */
+function showMovieDetail(m, isResult) {
+  const r = getRarity(m.rating), seen = !!state.watched[m.id];
+  const moodNames = m.moods.map(k => MOODS.find(x => x.key === k)).filter(Boolean).map(x => x.emoji+" "+x.name).join(" · ");
+  const mc = $("modal-content");
+  mc.dataset.movieId = m.id; mc.dataset.isResult = isResult ? "1" : "0";
+  mc.innerHTML = `
+    <div class="rarity-badge ${r.cls}">${r.label}</div>
+    <div class="modal-mood">${moodNames}</div>
+    <div class="modal-poster ${r.key==="ssr"?"ssr-glow":""}" style="background:linear-gradient(160deg,${m.g1},${m.g2})">${m.title}</div>
+    <div class="modal-title">${m.title}</div>
+    <div class="modal-meta">${m.year} · ${m.genre} · ${rtLabel(m.rt)} · <span style="color:#fbbf24;font-weight:700">★ ${m.rating}</span></div>
+    <div class="modal-review">"${m.review}"</div>
+    ${seen ? `<div class="seen-banner">✅ 已于 ${fmtTime(state.watched[m.id])} 打卡 · 获得 ${r.xp} XP · 孵化生物已入海底世界</div>` : ""}
+    <div class="modal-actions">
+      <button class="watch-toggle" id="watch-toggle" onclick="toggleWatchPanel()">📺 去观看 · 选择渠道 <span class="caret">▾</span></button>
+      <div class="watch-panel watch-grid" id="watch-panel">
+        ${WATCH_CHANNELS.map(c => `<a class="watch-ch" href="${c.url(m.title)}" target="_blank" rel="noopener"><span class="we">${c.e}</span><span>${c.name}<div class="ws">${c.s}</div></span></a>`).join("")}
+      </div>
+      <div class="share-row">
+        <button class="share-btn" onclick="openShare(${m.id})"><span class="se">🎁</span>分享这部片</button>
+      </div>
+      <div class="modal-row">
+        ${seen
+          ? `<button class="modal-btn disabled" disabled>✓ 已打卡</button>`
+          : `<button class="modal-btn checkin" onclick="checkIn(${m.id})">✅ 看完打卡 +${r.xp}XP</button>`}
+        ${isResult
+          ? `<button class="modal-btn again" onclick="closeModal();draw()">再抽一张</button>`
+          : ""}
+        <button class="modal-btn close" onclick="closeModal()">关闭</button>
+      </div>
+    </div>`;
+  $("modal").classList.add("show");
+  if (r.key === "ssr" && isResult) { sparkleBurst(); sfxSparkle(); }
+}
+function toggleWatchPanel() {
+  $("watch-panel").classList.toggle("open");
+  $("watch-toggle").classList.toggle("open");
+  sfxBubble();
+}
+
+function closeModal() { $("modal").classList.remove("show"); }
+$("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+
+function sparkleBurst() {
+  const screen = $("bubble-stage");
+  for (let i = 0; i < 14; i++) {
+    const s = document.createElement("div");
+    s.className = "sparkle";
+    s.style.left = Math.random()*100 + "%"; s.style.top = Math.random()*100 + "%";
+    s.style.background = ["#fbbf24","#f472b6","#a78bfa","#fff"][i%4];
+    screen.appendChild(s);
+    s.animate([
+      { opacity:0, transform:"scale(0)" },
+      { opacity:1, transform:"scale(1.5)" },
+      { opacity:0, transform:"scale(0)" }
+    ], { duration:800+Math.random()*600, delay:i*80 });
+    setTimeout(() => s.remove(), 1500);
+  }
+}
+
+/* ==================== 记录页 ==================== */
+function setRecordsSeg(seg) {
+  recordsSeg = seg;
+  document.querySelectorAll("#records-seg button").forEach(x => x.classList.toggle("active", x.dataset.seg === seg));
+  document.querySelectorAll(".mini-stat").forEach(x => x.classList.toggle("active", x.dataset.seg === seg));
+  renderRecords();
+}
+document.querySelectorAll("#records-seg button").forEach(b => {
+  b.onclick = () => setRecordsSeg(b.dataset.seg);
+});
+/* 统计项点击交互：片单页直接切换视图，我的页跳转到片单对应视图 */
+document.querySelectorAll(".mini-stat.clickable").forEach(el => el.onclick = () => setRecordsSeg(el.dataset.seg));
+document.querySelectorAll(".me-stat.clickable").forEach(el => el.onclick = () => {
+  switchTab("records");
+  setRecordsSeg(el.dataset.seg);
+});
+function renderRecords() {
+  $("rs-total").textContent = state.total;
+  $("rs-watched").textContent = Object.keys(state.watched).length;
+  $("rs-unique").textContent = Object.keys(state.unlocked).length;
+  $("rs-ssr").textContent = state.ssrCount;
+  const body = $("records-body");
+  const deckBarHTML = n => `<div class="deck-bar"><button class="deck-toggle ${state.deckOpen ? "open" : ""}" onclick="toggleDeck()">${state.deckOpen ? "🃏 收纳为牌堆" : "🃏 展开片单"} · ${n} 部 <span class="caret">▾</span></button></div>`;
+  if (recordsSeg === "history") {
+    if (!state.history.length) { body.innerHTML = `<div class="feed-empty">还没有抽片记录，回首页抽第一张吧～</div>`; return; }
+    const rows = state.history.slice(-30).reverse();
+    body.innerHTML = deckBarHTML(rows.length) + `<div class="h-list ${state.deckOpen ? "" : "deck"}">${rows.map((h, idx) => {
+      const r = getRarity(h.movie.rating), seen = state.watched[h.movie.id];
+      return `<div class="h-item" data-mid="${h.movie.id}" style="--i:${idx}">
+        <div class="h-thumb" style="background:linear-gradient(160deg,${h.movie.g1},${h.movie.g2})">${h.movie.title}${seen?'<div class="seen-mask">✓</div>':""}</div>
+        <div class="h-info">
+          <div class="n">${h.movie.title}</div>
+          <div class="m">${fmtTime(h.time)} · <span style="color:${r.color}">${r.label}</span> · ${rtLabel(h.movie.rt)}
+          ${seen ? ` · <span class="ok">已打卡 +${r.xp}XP</span>` : ""}</div>
+        </div>
+        <div class="h-rate">★${h.movie.rating}</div>
+      </div>`;
+    }).join("")}</div>`;
+  } else if (recordsSeg === "watched") {
+    const ids = Object.keys(state.watched);
+    if (!ids.length) { body.innerHTML = `<div class="feed-empty">还没有打卡记录，抽片后去 B 站看完回来打卡吧～</div>`; return; }
+    const wrows = ids.map(id => ({ id, m: MOVIES.find(x => x.id == id) })).filter(x => x.m);
+    body.innerHTML = deckBarHTML(wrows.length) + `<div class="h-list ${state.deckOpen ? "" : "deck"}">${wrows.map(({id, m}, idx) => {
+      const r = getRarity(m.rating);
+      return `<div class="h-item" data-mid="${m.id}" style="--i:${idx}">
+        <div class="h-thumb" style="background:linear-gradient(160deg,${m.g1},${m.g2})">${m.title}<div class="seen-mask">✓</div></div>
+        <div class="h-info">
+          <div class="n">${m.title}</div>
+          <div class="m">${fmtTime(state.watched[id])} 打卡 · <span class="ok">+${r.xp}XP</span></div>
+        </div>
+        <div class="h-rate">★${m.rating}</div>
+      </div>`;
+    }).join("")}</div>`;
+  } else if (recordsSeg === "ssr") {
+    const ssrMovies = MOVIES.filter(m => getRarity(m.rating).key === "ssr");
+    body.innerHTML = `<div class="collection-grid">${ssrMovies.map(m => {
+      const r = getRarity(m.rating), got = state.unlocked[m.id], seen = state.watched[m.id];
+      return `<div class="c-card ${got?"":"locked"}" data-mid="${m.id}" style="background:linear-gradient(160deg,${m.g1},${m.g2})">
+        <span class="rt ${r.cls}">${r.key.toUpperCase()}</span>
+        ${seen?'<span class="done">✓已看</span>':""}
+        <div class="cp">${m.title}</div>
+        ${got?`<span class="star">★ ${m.rating}</span>`:""}
+      </div>`;
+    }).join("")}</div>`;
+  } else {
+    body.innerHTML = `<div class="collection-grid">${MOVIES.map(m => {
+      const r = getRarity(m.rating), got = state.unlocked[m.id], seen = state.watched[m.id];
+      return `<div class="c-card ${got?"":"locked"}" data-mid="${m.id}" style="background:linear-gradient(160deg,${m.g1},${m.g2})">
+        <span class="rt ${r.cls}">${r.key.toUpperCase()}</span>
+        ${seen?'<span class="done">✓已看</span>':""}
+        <div class="cp">${m.title}</div>
+        ${got?`<span class="star">★ ${m.rating}</span>`:""}
+      </div>`;
+    }).join("")}</div>`;
+  }
+  body.querySelectorAll("[data-mid]").forEach(el => el.onclick = () => {
+    // 牌堆收纳态：点任意卡片先展开片单
+    if (!state.deckOpen && (recordsSeg === "history" || recordsSeg === "watched") && body.querySelector(".h-list.deck")) {
+      toggleDeck(); return;
+    }
+    const m = MOVIES.find(x => x.id == el.dataset.mid);
+    if (m && (state.unlocked[m.id] || recordsSeg !== "collection")) showMovieDetail(m, false);
+    else if (!state.unlocked[m.id]) toast("未解锁，抽中后可查看详情");
+  });
+}
+/* 片单牌堆：收纳/展开切换 */
+function toggleDeck() {
+  state.deckOpen = !state.deckOpen;
+  saveState(); renderRecords(); sfxBubble();
+}
+
+/* ==================== 我的页 · 成就（专属图标 + 点击查看成长路径） ==================== */
+const UNLOCK_HALF = Math.ceil(MOVIES.length/2), UNLOCK_QUARTER = Math.ceil(MOVIES.length/4);
+const ACHIEVEMENTS = [
+  { key:"first",  emoji:"🎫", bg:"linear-gradient(135deg,#7c3aed,#a78bfa)", name:"初次抽片", desc:"完成第一次抽片", unit:"次",
+    test:s => s.total >= 1, prog:s => [Math.min(s.total,1),1],
+    milestones:[ {v:1,label:"首次抽片"} ] },
+  { key:"ten",    emoji:"🎰", bg:"linear-gradient(135deg,#db2777,#f472b6)", name:"抽片行家", desc:"累计抽片满 10 次", unit:"次",
+    test:s => s.total >= 10, prog:s => [s.total,10],
+    milestones:[ {v:1,label:"首抽"},{v:10,label:"10次"},{v:25,label:"25次"},{v:50,label:"50次"},{v:100,label:"百抽"} ] },
+  { key:"ssr",    emoji:"🌟", bg:"linear-gradient(135deg,#b45309,#fbbf24)", name:"SSR 降临", desc:"抽到一部 SSR 神作", unit:"部",
+    test:s => s.ssrCount >= 1, prog:s => [s.ssrCount,1],
+    milestones:[ {v:1,label:"首部SSR"},{v:3,label:"3部"},{v:5,label:"5部"} ] },
+  { key:"w1",     emoji:"🐣", bg:"linear-gradient(135deg,#16a34a,#4ade80)", name:"打卡新人", desc:"看完并打卡第 1 部", unit:"部",
+    test:s => Object.keys(s.watched).length >= 1, prog:s => [Object.keys(s.watched).length,1],
+    milestones:[ {v:1,label:"首部打卡"} ] },
+  { key:"w10",    emoji:"🎞️", bg:"linear-gradient(135deg,#0f766e,#2dd4bf)", name:"观影达人", desc:"累计打卡 10 部影片", unit:"部",
+    test:s => Object.keys(s.watched).length >= 10, prog:s => [Object.keys(s.watched).length,10],
+    milestones:[ {v:1,label:"1部"},{v:5,label:"5部"},{v:10,label:"10部"},{v:20,label:"20部"},{v:30,label:"30部"} ] },
+  { key:"half",   emoji:"🗺️", bg:"linear-gradient(135deg,#1d4ed8,#60a5fa)", name:"图鉴过半", desc:`解锁 ${UNLOCK_HALF} 部影片`, unit:"部",
+    test:s => Object.keys(s.unlocked).length >= UNLOCK_HALF, prog:s => [Object.keys(s.unlocked).length,UNLOCK_HALF],
+    milestones:[ {v:UNLOCK_QUARTER,label:UNLOCK_QUARTER+"部"},{v:UNLOCK_HALF,label:UNLOCK_HALF+"部"},{v:MOVIES.length,label:"全部"} ] },
+  { key:"all",    emoji:"👑", bg:"linear-gradient(135deg,#92400e,#f59e0b)", name:"全片制霸", desc:`解锁全部 ${MOVIES.length} 部影片`, unit:"部",
+    test:s => Object.keys(s.unlocked).length >= MOVIES.length, prog:s => [Object.keys(s.unlocked).length,MOVIES.length],
+    milestones:[ {v:UNLOCK_QUARTER,label:UNLOCK_QUARTER+"部"},{v:UNLOCK_HALF,label:UNLOCK_HALF+"部"},{v:MOVIES.length-UNLOCK_QUARTER,label:(MOVIES.length-UNLOCK_QUARTER)+"部"},{v:MOVIES.length,label:"全部"} ] },
+  { key:"lvl5",   emoji:"🏆", bg:"linear-gradient(135deg,#9f1239,#fb7185)", name:"影评达人", desc:"影迷等级达到 Lv.5", unit:"XP",
+    test:s => getLevelInfo(s.xp).cur.lv >= 5, prog:s => [s.xp,750],
+    milestones: LEVELS.slice(0,5).map(l => ({ v:l.need||1, label:"Lv"+l.lv })) }
+];
+/* 达成成就时：图标弹出显现 */
+function checkAchievements() {
+  if (!state.achSeen) state.achSeen = {};
+  const newly = ACHIEVEMENTS.filter(a => !state.achSeen[a.key] && a.test(state));
+  if (!newly.length) return;
+  newly.forEach(a => state.achSeen[a.key] = true);
+  saveState();
+  let delay = 0;
+  newly.forEach(a => { setTimeout(() => showAchievementPop(a), delay); delay += 2300; });
+}
+function showAchievementPop(a) {
+  sfxAchieve();
+  const pop = document.createElement("div");
+  pop.className = "ach-pop";
+  pop.innerHTML = `
+    <div class="ap-card">
+      <div class="ap-icon" style="background:${a.bg};box-shadow:0 14px 44px rgba(0,0,0,0.5), 0 0 40px rgba(251,191,36,0.25)">${a.emoji}</div>
+      <div class="ap-label">🏆 成就达成</div>
+      <div class="ap-name">${a.name}</div>
+      <div class="ap-desc">${a.desc}</div>
+      <div class="ap-tip">点击任意位置收下</div>
+    </div>`;
+  pop.onclick = () => pop.remove();
+  document.body.appendChild(pop);
+  setTimeout(() => { if (pop.parentNode) pop.remove(); }, 4000);
+}
+/* 成就成长路径弹窗 */
+function openAchPath(a) {
+  sfxPop();
+  const [cur, target] = a.prog(state);
+  const got = a.test(state);
+  const doneCount = a.milestones.filter(ms => cur >= ms.v).length;
+  const curIdx = Math.min(doneCount, a.milestones.length - 1);
+  const fill = a.milestones.length > 1 ? (doneCount / (a.milestones.length - 1)) * 100 : (got ? 100 : 0);
+  const pop = document.createElement("div");
+  pop.className = "ach-path-overlay";
+  pop.innerHTML = `
+    <div class="apw-card">
+      <div class="apw-icon" style="background:${got ? a.bg : "rgba(255,255,255,0.06)"};${got?"":"filter:grayscale(1);opacity:.75"}">${a.emoji}</div>
+      <div class="apw-name">${a.name}</div>
+      <div class="apw-desc">${a.desc}${got ? " · 🏆 已达成" : ""}</div>
+      <div class="apw-bar"><i style="width:${Math.min(100, Math.round(cur/target*100))}%"></i></div>
+      <div class="apw-meta">当前 <b>${got ? target : cur}</b> / ${target} ${a.unit}${got ? " · 可继续冲击更高里程碑" : ""}</div>
+      <div class="path-steps">
+        <div class="path-line"><i style="width:${Math.round(fill)}%"></i></div>
+        ${a.milestones.map((ms, i) => `
+          <div class="ps-node ${cur >= ms.v ? "done" : i === curIdx ? "cur" : ""}">
+            <div class="dot">${cur >= ms.v ? "✓" : (ms.label.match(/\d+/) || [ms.label.slice(0,2)])[0]}</div>
+            <span class="lb">${ms.label}</span>
+          </div>`).join("")}
+      </div>
+      <div class="apw-tip">点击任意位置关闭</div>
+    </div>`;
+  pop.onclick = e => { if (e.target === pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+/* 影迷等级成长路径弹窗 */
+function openLevelPath() {
+  sfxPop();
+  const { cur, next } = getLevelInfo(state.xp);
+  const fill = ((cur.lv - 1) / (LEVELS.length - 1)) * 100;
+  const barPct = next ? Math.min(100, Math.round((state.xp - cur.need) / (next.need - cur.need) * 100)) : 100;
+  const pop = document.createElement("div");
+  pop.className = "ach-path-overlay";
+  pop.innerHTML = `
+    <div class="apw-card">
+      <div class="apw-icon" style="background:linear-gradient(135deg,#f59e0b,#fbbf24,#fb7185);box-shadow:0 10px 28px rgba(251,191,36,0.4)">🏅</div>
+      <div class="apw-name">Lv.${cur.lv} ${cur.name}</div>
+      <div class="apw-desc">影迷等级 · 抽片打卡积累 XP 升级</div>
+      <div class="apw-bar"><i style="width:${barPct}%"></i></div>
+      <div class="apw-meta">当前 <b>${state.xp} XP</b>${next ? ` · 距 Lv.${next.lv} ${next.name} 还需 <b>${next.need - state.xp} XP</b>` : " · 已达最高等级 👑"}</div>
+      <div class="path-steps">
+        <div class="path-line"><i style="width:${Math.round(fill)}%"></i></div>
+        ${LEVELS.map(l => {
+          const cls = l.lv < cur.lv ? "done" : l.lv === cur.lv ? (next ? "cur" : "done") : "";
+          return `
+          <div class="ps-node ${cls}">
+            <div class="dot">${cls === "done" ? "✓" : l.lv}</div>
+            <span class="lb">Lv${l.lv}</span>
+          </div>`;
+        }).join("")}
+      </div>
+      <div class="lv-path-names">${LEVELS.map(l => `<span class="${l.lv === cur.lv ? "now" : state.xp >= l.need ? "got" : ""}">Lv${l.lv} ${l.name} · ${l.need}XP</span>`).join("")}</div>
+      <div class="apw-tip">点击任意位置关闭</div>
+    </div>`;
+  pop.onclick = e => { if (e.target === pop) pop.remove(); };
+  document.body.appendChild(pop);
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = $("me-level-name");
+  if (btn) btn.addEventListener("click", openLevelPath);
+});
+$("me-level-name") && $("me-level-name").addEventListener("click", openLevelPath);
+function renderMe() {
+  const { cur, next } = getLevelInfo(state.xp);
+  $("me-level-name").innerHTML = `Lv.${cur.lv} ${cur.name} <span class="lv-go">等级路径 ›</span>`;
+  $("me-xp").textContent = state.xp;
+  $("me-watched").textContent = Object.keys(state.watched).length;
+  if (next) {
+    const pct = Math.min(100, Math.round((state.xp-cur.need)/(next.need-cur.need)*100));
+    $("me-pbar").style.width = pct + "%";
+    $("me-pcur").textContent = `${state.xp} XP`;
+    $("me-pnext").textContent = `距 Lv.${next.lv} 还需 ${next.need-state.xp} XP`;
+  } else {
+    $("me-pbar").style.width = "100%";
+    $("me-pcur").textContent = `${state.xp} XP`;
+    $("me-pnext").textContent = "已达最高等级 👑";
+  }
+  $("ms-total").textContent = state.total;
+  $("ms-watched").textContent = Object.keys(state.watched).length;
+  $("ms-ssr").textContent = state.ssrCount;
+  $("ms-unique").textContent = Object.keys(state.unlocked).length;
+  $("ach-list").innerHTML = ACHIEVEMENTS.map(a => {
+    const got = a.test(state);
+    return `<div class="ach-item ${got?"got":""}" data-ach="${a.key}">
+      <span class="ach-icon-wrap" ${got?`style="background:${a.bg}"`:""}>${a.emoji}</span>
+      <div class="ach-info"><div class="n">${a.name}</div><div class="d">${a.desc}</div></div>
+      <div style="text-align:right;">
+        <div class="ach-state" style="color:${got?"var(--gold)":"rgba(255,255,255,0.35)"}">${got?"已达成":"未解锁"}</div>
+        <div class="ach-hint">成长路径 ›</div>
+      </div>
+    </div>`;
+  }).join("");
+  $("ach-list").querySelectorAll(".ach-item").forEach(el => {
+    el.onclick = () => openAchPath(ACHIEVEMENTS.find(x => x.key === el.dataset.ach));
+  });
+  renderOcean();
+}
+
+/* ==================== 海底世界（独立生物 · 可拖动 · 点击爆片名） ==================== */
+function seaDefaultPos(i) {
+  const col = i % 6, row = Math.floor(i / 6);
+  return { x: 4 + col * 15.6 + ((i * 137) % 9), y: 10 + row * 55 + ((i * 89) % 16) };
+}
+function seaSceneHTML(sea, large) {
+  let html = `<div class="ocean-scene"><div class="ocean-floor"></div>`;
+  html += `<span class="ocean-weed" style="left:4%">🌿</span><span class="ocean-weed" style="right:6%;animation-delay:.8s">🌿</span><span class="ocean-weed" style="left:46%;font-size:16px;animation-delay:1.5s">🌱</span>`;
+  for (let i = 0; i < 4; i++) {
+    const sz = 4 + (i % 3) * 3;
+    html += `<span class="ocean-bub" style="left:${12 + i * 24}%;width:${sz}px;height:${sz}px;animation-delay:${(i * 1.3).toFixed(1)}s"></span>`;
+  }
+  sea.forEach((s, i) => {
+    if (s.x == null || s.y == null) { const p = seaDefaultPos(i); s.x = p.x; s.y = p.y; }
+    html += `<div class="ocean-creature" data-oi="${i}" style="left:${s.x}%;top:${s.y}%;animation:bob ${2.4 + (i % 3) * 0.5}s ease-in-out ${(i * 0.35).toFixed(2)}s infinite" title="${s.name}">${s.emoji}</div>`;
+  });
+  return html + `</div>`;
+}
+/* 给容器内所有生物绑定：拖动摆放（移动>6px）或点击爆片名 */
+function bindOceanCreatures(bodyEl, isZoom) {
+  bodyEl.querySelectorAll(".ocean-creature").forEach(el => {
+    let startX, startY, dragging = false, moved = false, scene = null;
+    el.addEventListener("pointerdown", e => {
+      dragging = true; moved = false;
+      startX = e.clientX; startY = e.clientY;
+      scene = el.closest(".ocean-scene");
+      try { el.setPointerCapture && el.setPointerCapture(e.pointerId); } catch(_) {}
+      e.preventDefault();
+    });
+    el.addEventListener("pointermove", e => {
+      if (!dragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) < 6) return;
+      if (!moved) { moved = true; el.classList.add("dragging"); }
+      const r = scene.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, (e.clientX - r.left - el.offsetWidth/2) / r.width * 100));
+      const y = Math.max(0, Math.min(100, (e.clientY - r.top - el.offsetHeight/2) / r.height * 100));
+      el.style.left = x + "%"; el.style.top = y + "%";
+    });
+    const endDrag = e => {
+      if (!dragging) return;
+      dragging = false;
+      el.classList.remove("dragging");
+      if (moved) {
+        const i = +el.dataset.oi;
+        if (state.sea[i]) { state.sea[i].x = parseFloat(el.style.left); state.sea[i].y = parseFloat(el.style.top); saveState(); }
+        // 只同步另一视图，避免销毁正在操作的当前元素
+        if (isZoom) renderOcean();
+        else if ($("ocean-zoom-overlay").classList.contains("show")) renderOceanZoom();
+      } else {
+        popCreatureName(el);
+      }
+    };
+    el.addEventListener("pointerup", endDrag);
+    el.addEventListener("pointercancel", () => { dragging = false; el.classList.remove("dragging"); });
+  });
+}
+/* 点击生物：弹跳 + fixed 气泡标签（不被海洋边框裁剪） */
+function popCreatureName(el) {
+  const s = state.sea[+el.dataset.oi];
+  if (!s) return;
+  const mv = MOVIES.find(x => x.id === s.mid);
+  const prevAnim = el.style.animation;
+  el.style.animation = "creatureBurst .5s cubic-bezier(.34,1.56,.64,1)";
+  setTimeout(() => { el.style.animation = prevAnim; }, 520);
+  sfxPop();
+  const rect = el.getBoundingClientRect();
+  const pop = document.createElement("div");
+  pop.className = "sea-pop";
+  pop.innerHTML = `《${mv ? mv.title : "未知影片"}》<small>${s.emoji} ${s.name} · ${fmtTime(s.time)} 孵化</small>`;
+  // 先用 fixed 默认渲染测宽，再 clamp 到视口内
+  pop.style.visibility = "hidden";
+  document.body.appendChild(pop);
+  const pw = pop.offsetWidth || 150;
+  let left = Math.max(pw/2 + 8, Math.min(window.innerWidth - pw/2 - 8, rect.left + rect.width/2));
+  let top = rect.top - 8, below = false;
+  if (top < 64) { top = rect.bottom + 12; below = true; } // 顶部空间不足则向下爆
+  if (below) pop.classList.add("below");
+  pop.style.left = left + "px"; pop.style.top = top + "px";
+  pop.style.visibility = "visible";
+  setTimeout(() => pop.remove(), 2150);
+}
+function renderOcean() {
+  const body = $("ocean-body"), sea = state.sea || [];
+  const oc = $("ocean-count"); if (oc) oc.textContent = `${sea.length} 只`;
+  if (!sea.length) {
+    body.innerHTML = `<div class="ocean-empty">🫧 海底还空空如也<br>抽片 → 看完打卡 → 泡沫破裂孵化海洋生物</div>`;
+    return;
+  }
+  const rows = Math.ceil(sea.length / 6);
+  const H = Math.max(172, rows * 58 + 34);
+  body.innerHTML = seaSceneHTML(sea);
+  body.querySelector(".ocean-scene").style.height = H + "px";
+  bindOceanCreatures(body);
+}
+/* 全屏放大视图 */
+function openOceanZoom() {
+  const sea = state.sea || [];
+  if (!sea.length) { toast("海底还没有生物，去抽片打卡孵化一只吧～"); return; }
+  $("ocean-zoom-overlay").classList.add("show");
+  renderOceanZoom();
+  sfxBubble();
+}
+function renderOceanZoom() {
+  const body = $("ocean-zoom-body"), sea = state.sea || [];
+  body.innerHTML = seaSceneHTML(sea, true);
+  bindOceanCreatures(body, true);
+}
+function closeOceanZoom() { $("ocean-zoom-overlay").classList.remove("show"); renderOcean(); }
+$("ocean-zoom-overlay").addEventListener("click", e => { if (e.target.id === "ocean-zoom-overlay") closeOceanZoom(); });
+
+/* ==================== 分享模块 ==================== */
+let shareMovie = null;
+function shareText(m) {
+  const r = getRarity(m.rating);
+  return `🫧 我在「泡沫选片」吹泡泡抽到了《${m.title}》\n⭐ ${m.rating} · ${r.label} · ${m.genre} · ${rtLabel(m.rt)}\n“${m.review}”\n今天也要看好片呀～`;
+}
+function openShare(id) {
+  const m = MOVIES.find(x => x.id === id); if (!m) return;
+  shareMovie = m;
+  const r = getRarity(m.rating);
+  sfxBubble();
+  $("share-card").innerHTML = `
+    <button class="share-x" onclick="closeShare()" title="关闭">✕</button>
+    <h4>🎁 分享这部好片</h4>
+    <div class="share-poster-preview" style="background:linear-gradient(160deg,${m.g1},${m.g2})">
+      <span class="sp-rt">${r.label} · ★${m.rating}</span>
+      <div class="sp-t">${m.title}</div>
+      <div class="sp-r">${m.year} · ${m.genre} · ${rtLabel(m.rt)}</div>
+      <div class="sp-r">“${m.review}”</div>
+      <div class="sp-b">🫧 泡沫选片 FOAM PICK</div>
+    </div>
+    <textarea class="share-text" id="share-text">${shareText(m)}</textarea>
+    <div class="share-actions">
+      <button class="sa-copy" onclick="copyShare()">📋 复制文案</button>
+      <button class="sa-sys" onclick="systemShare()">📨 系统分享</button>
+      <button class="sa-poster" onclick="posterShare()">🖼 生成海报</button>
+    </div>
+    <div class="share-tip">复制文案后可粘贴到微信/朋友圈/微博 · 海报保存为图片</div>`;
+  $("share-overlay").classList.add("show");
+}
+function closeShare() { $("share-overlay").classList.remove("show"); }
+$("share-overlay").addEventListener("click", e => { if (e.target.id === "share-overlay") closeShare(); });
+$("share-card").addEventListener("click", e => e.stopPropagation());
+function getShareText() { return ($("share-text") && $("share-text").value || (shareMovie ? shareText(shareMovie) : "")).trim(); }
+async function copyShare() {
+  const txt = getShareText();
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(txt); }
+    else {
+      const ta = document.createElement("textarea");
+      ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); ta.remove();
+    }
+    toast("✅ 文案已复制，去粘贴分享吧");
+  } catch(e) { toast("复制失败，请长按文字手动复制"); }
+}
+async function systemShare() {
+  const txt = getShareText();
+  if (navigator.share) {
+    try { await navigator.share({ title: `泡沫选片 · 《${shareMovie.title}》`, text: txt }); } catch(e) {}
+  } else {
+    toast("当前浏览器不支持系统分享，已为你复制文案");
+    copyShare();
+  }
+}
+/* Canvas 生成海报图并下载（无外部依赖） */
+function posterShare() {
+  const m = shareMovie; if (!m) return;
+  const r = getRarity(m.rating);
+  const cv = document.createElement("canvas");
+  cv.width = 750; cv.height = 1060;
+  const ctx = cv.getContext("2d");
+  // 背景渐变
+  const g = ctx.createLinearGradient(0, 0, 750, 1060);
+  g.addColorStop(0, m.g1); g.addColorStop(1, m.g2);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 750, 1060);
+  // 泡泡装饰
+  ctx.globalAlpha = 0.18;
+  [[110,160,70],[640,250,95],[600,820,60],[150,900,80]].forEach(([x,y,rad]) => {
+    ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI*2);
+    ctx.fillStyle = "#ffffff"; ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  // 顶部标签
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  roundRect(ctx, 40, 56, 230, 52, 26); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.font = "bold 26px sans-serif"; ctx.textBaseline = "middle";
+  ctx.fillText(`${r.label} · ★ ${m.rating}`, 62, 83);
+  // 片名
+  ctx.fillStyle = "#fff"; ctx.font = "bold 64px sans-serif"; ctx.textBaseline = "top";
+  wrapCanvasText(ctx, m.title, 52, 480, 646, 72, 2);
+  // 信息
+  ctx.font = "26px sans-serif"; ctx.globalAlpha = 0.9;
+  ctx.fillText(`${m.year} · ${m.genre} · ${rtLabel(m.rt)}`, 52, 620);
+  ctx.globalAlpha = 1;
+  // 短评卡片
+  ctx.fillStyle = "rgba(0,0,0,0.28)"; roundRect(ctx, 40, 680, 670, 180, 22); ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.95)"; ctx.font = "italic 27px sans-serif";
+  wrapCanvasText(ctx, `“${m.review}”`, 68, 714, 614, 42, 3);
+  // 底部水印
+  ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "bold 26px sans-serif"; ctx.textAlign = "right";
+  ctx.fillText("🫧 泡沫选片 FOAM PICK", 700, 1000);
+  ctx.textAlign = "left";
+  // 下载
+  const a = document.createElement("a");
+  a.download = `泡沫选片-${m.title}.png`;
+  a.href = cv.toDataURL("image/png");
+  document.body.appendChild(a); a.click(); a.remove();
+  toast("🖼 海报已生成并开始保存");
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+function wrapCanvasText(ctx, text, x, y, maxW, lh, maxLines) {
+  let line = "", lines = [];
+  for (const ch of text) {
+    if (ctx.measureText(line + ch).width > maxW && line) { lines.push(line); line = ch; }
+    else line += ch;
+  }
+  if (line) lines.push(line);
+  if (maxLines && lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines-1] = lines[maxLines-1].slice(0, -1) + "…"; }
+  lines.forEach((ln, i) => ctx.fillText(ln, x, y + i * lh));
+}
+
+/* ==================== 重置 & 欢迎 ==================== */
+function resetAll() {
+  if (!confirm("确定要重置所有抽片与打卡进度吗？此操作不可撤销。")) return;
+  const keepWelcomed = state.welcomed;
+  state = { total:0, ssrCount:0, unlocked:{}, history:[], watched:{}, xp:0, mood:currentMood, cat:currentCat, welcomed:keepWelcomed, sea:[], achSeen:{}, fabPos:state.fabPos };
+  saveState(); renderFeed(); resetStage(); toast("进度已重置");
+}
+function closeWelcome() {
+  $("welcome-overlay").classList.remove("show");
+  state.welcomed = true; saveState();
+}
+
+/* ==================== 聊天智能体 · 泡小沫 ==================== */
+let chatBooted = false;
+/* FAB 可拖动：移动>7px视为拖动，否则视为点击打开聊天；位置持久化 */
+(function initFabDrag() {
+  const fab = $("chat-fab");
+  function applyPos() {
+    const p = state.fabPos;
+    if (!p) return;
+    const W = window.innerWidth, H = window.innerHeight;
+    fab.style.left = Math.max(8, Math.min(W - 66, p.x)) + "px";
+    fab.style.top = Math.max(8, Math.min(H - 66, p.y)) + "px";
+    fab.style.right = "auto"; fab.style.bottom = "auto";
+  }
+  document.addEventListener("DOMContentLoaded", applyPos);
+  applyPos();
+  window.addEventListener("resize", applyPos);
+  let sx, sy, dragging = false, moved = false;
+  fab.addEventListener("pointerdown", e => {
+    dragging = true; moved = false; sx = e.clientX; sy = e.clientY;
+    try { fab.setPointerCapture && fab.setPointerCapture(e.pointerId); } catch(_) {}
+  });
+  fab.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    if (!moved && Math.hypot(e.clientX - sx, e.clientY - sy) < 7) return;
+    moved = true; fab.classList.add("dragging");
+    const W = window.innerWidth, H = window.innerHeight;
+    const x = Math.max(4, Math.min(W - 62, e.clientX - 29));
+    const y = Math.max(4, Math.min(H - 62, e.clientY - 29));
+    fab.style.left = x + "px"; fab.style.top = y + "px";
+    fab.style.right = "auto"; fab.style.bottom = "auto";
+  });
+  fab.addEventListener("pointerup", e => {
+    if (!dragging) return;
+    dragging = false; fab.classList.remove("dragging");
+    if (moved) {
+      state.fabPos = { x: parseFloat(fab.style.left), y: parseFloat(fab.style.top) };
+      saveState(); sfxPop();
+    } else {
+      openChat();
+    }
+  });
+  fab.addEventListener("pointercancel", () => { dragging = false; fab.classList.remove("dragging"); });
+})();
+function openChat() {
+  $("chat-overlay").classList.add("show");
+  if (!chatBooted) {
+    chatBooted = true;
+    botSay(`你好呀～我是泡小沫 🫧<br>告诉我想看什么类型的片子，我马上吹泡泡帮你找！<br><span style="font-size:11px;color:rgba(255,255,255,0.5)">也可以点下方快捷词，或直接说“随缘”</span>`);
+  }
+  setTimeout(() => $("chat-text").focus(), 350);
+}
+function closeChat() { $("chat-overlay").classList.remove("show"); }
+$("chat-overlay").addEventListener("click", e => { if (e.target.id === "chat-overlay") closeChat(); });
+
+function pushMsg(who, html, extra) {
+  const body = $("chat-body");
+  const div = document.createElement("div");
+  div.className = "cmsg " + who;
+  div.innerHTML = `<span class="cm-avatar">${who === "bot" ? "•ᴗ•" : "🙂"}</span><div class="cm-bubble">${html}</div>`;
+  body.appendChild(div);
+  body.scrollTop = body.scrollHeight;
+  return div;
+}
+function botSay(html, movies) {
+  const typing = pushMsg("bot", "<span>·</span><span>·</span><span>·</span>");
+  typing.classList.add("typing");
+  setTimeout(() => {
+    typing.classList.remove("typing");
+    typing.querySelector(".cm-bubble").innerHTML = html;
+    if (movies && movies.length) {
+      const rec = document.createElement("div");
+      rec.className = "chat-rec";
+      rec.innerHTML = movies.map(m => {
+        const r = getRarity(m.rating);
+        return `<div class="cr-card" data-mid="${m.id}">
+          <div class="cr-poster" style="background:linear-gradient(160deg,${m.g1},${m.g2})">${m.title}</div>
+          <div class="cr-info"><div class="n">${m.title}</div><div class="m"><b>★${m.rating}</b><span>${rtLabel(m.rt)}</span></div></div>
+        </div>`;
+      }).join("");
+      typing.appendChild(rec);
+      rec.querySelectorAll(".cr-card").forEach(c => c.onclick = () => {
+        const m = MOVIES.find(x => x.id == c.dataset.mid);
+        if (m) { closeChat(); showMovieDetail(m, false); }
+      });
+    }
+    $("chat-body").scrollTop = $("chat-body").scrollHeight;
+  }, 600 + Math.random() * 400);
+}
+function botReply(text) {
+  const t = text.toLowerCase();
+  const has = (...ws) => ws.some(w => t.includes(w));
+  let movies = null, reply;
+  if (has("你好", "在吗", "hi", "hello", "嗨")) {
+    reply = "在的在的 🫧 想看什么类型的？喜剧、动画、科幻、爱情…或者报个心情也行～";
+  } else if (has("感谢", "谢谢")) {
+    reply = "不客气～好片值得被发现 ✨ 看完记得回来打卡，泡沫会孵化小生物哦！";
+  } else if (has("高分", "神作", "ssr", "经典")) {
+    movies = MOVIES.filter(m => getRarity(m.rating).key === "ssr").slice(0, 5);
+    reply = "SSR 神作区来了 ⭐ 这些都是 9.4 分以上的顶级好片：";
+  } else if (has("喜剧", "搞笑", "想笑", "开心", "欢乐", "笑")) {
+    movies = MOVIES.filter(m => m.genre.includes("喜剧") || m.moods.includes("happy")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "想笑就笑出声 😄 这几部包你嘴角上扬：";
+  } else if (has("哭", "感动", "泪", "虐")) {
+    movies = MOVIES.filter(m => m.moods.includes("cry")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "备好纸巾 😭 这几部直戳泪点：";
+  } else if (has("治愈", "温暖", "温柔")) {
+    movies = MOVIES.filter(m => m.moods.includes("heal")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "来一碗心灵热汤 😌 治愈系安排：";
+  } else if (has("刺激", "紧张", "悬疑", "惊悚", "爽")) {
+    movies = MOVIES.filter(m => m.moods.includes("thrill")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "心跳加速警告 😱 刺激片单：";
+  } else if (has("烧脑", "反转", "推理", "脑洞")) {
+    movies = MOVIES.filter(m => m.moods.includes("mind")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "脑力体操开始 🧠 看完别忘复盘：";
+  } else if (has("爱情", "心动", "浪漫", "恋爱")) {
+    movies = MOVIES.filter(m => m.moods.includes("love")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "恋爱的酸臭味来了 💕 这几部甜到冒泡：";
+  } else if (has("动画", "动漫", "宫崎骏", "皮克斯")) {
+    movies = MOVIES.filter(m => m.genre.includes("动画")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "动画世界大门打开 🎨 不分年龄的好看：";
+  } else if (has("科幻", "太空", "未来")) {
+    movies = MOVIES.filter(m => m.genre.includes("科幻")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "系好安全带 🚀 科幻航线出发：";
+  } else if (has("纪录", "真实")) {
+    movies = MOVIES.filter(m => m.genre.includes("纪录")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "真实的力量 📷 纪录片推荐：";
+  } else if (has("美食", "吃", "食物")) {
+    movies = MOVIES.filter(m => m.genre.includes("美食")).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "深夜放毒 🍜 看饿了别怪我：";
+  } else if (has("短片", "碎片", "几分钟", "短时间")) {
+    movies = MOVIES.filter(m => m.rt <= 25).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "碎片时间也能看好片 ⏱ 25 分钟内解决：";
+  } else if (has("长片", "大片", "周末", "史诗")) {
+    movies = MOVIES.filter(m => m.rt >= 140).sort((a,b) => b.rating - a.rating).slice(0, 4);
+    reply = "周末沉浸式大片 🌙 准备好沙发和零食：";
+  } else if (has("随缘", "随便", "都可以", "你定")) {
+    movies = [...MOVIES].sort(() => Math.random() - 0.5).slice(0, 3);
+    reply = "那我闭眼吹泡泡啦 🎲 缘分天注定：";
+  } else {
+    const hits = searchPool(text);
+    if (hits.length) {
+      movies = hits.slice(0, 4);
+      reply = `在我的泡泡库里找到了「${text}」相关的 🔍：`;
+    } else {
+      movies = MOVIES.filter(m => m.rating >= 9.4).sort(() => Math.random() - 0.5).slice(0, 3);
+      reply = "这个类型我的泡泡库还装不下 🥺 先送你几部压箱底高分片，点下面快捷词可以更精准哦～";
+    }
+  }
+  botSay(reply, movies);
+}
+function sendChat() {
+  const inp = $("chat-text");
+  const text = (inp.value || "").trim();
+  if (!text) return;
+  inp.value = "";
+  pushMsg("user", text.replace(/</g, "&lt;"));
+  sfxBubble();
+  botReply(text);
+}
+$("chat-text").addEventListener("keydown", e => { if (e.key === "Enter") sendChat(); });
+// 推荐卡片点击（事件委托兜底）
+$("chat-body").addEventListener("click", e => {
+  const card = e.target.closest(".cr-card");
+  if (!card) return;
+  const m = MOVIES.find(x => x.id == card.dataset.mid);
+  if (m) { closeChat(); showMovieDetail(m, false); }
+});
+function renderChatQuick() {
+  const words = ["😄 想笑", "😭 想哭", "😌 治愈", "😱 刺激", "🧠 烧脑", "💕 心动", "🎨 动画", "🚀 科幻", "🍜 美食", "⏱ 短片", "🌙 周末大片", "🎲 随缘"];
+  $("chat-quick").innerHTML = words.map(w => `<button class="chip">${w}</button>`).join("");
+  $("chat-quick").querySelectorAll(".chip").forEach(c => c.onclick = () => {
+    const text = c.textContent.replace(/^\S+\s/, "");
+    pushMsg("user", c.textContent);
+    sfxBubble();
+    botReply(text);
+  });
+}
+
+/* ==================== 初始化 ==================== */
+loadState();
+currentMood = state.mood || "random";
+currentCat = state.cat || "all";
+applyMoodTheme(currentMood);
+greeting();
+renderCats();
+renderBanner();
+renderMoods();
+renderDrawInfo();
+renderFeedFilters();
+renderFeed();
+renderChatQuick();
+// 成就标记初始化：已满足的静默标记，不再弹窗
+if (!state.achSeen) state.achSeen = {};
+ACHIEVEMENTS.forEach(a => { if (state.achSeen[a.key] === undefined && a.test(state)) state.achSeen[a.key] = true; });
+saveState();
+if (!state.welcomed) $("welcome-overlay").classList.add("show");
+</script>
+</body>
+</html>
